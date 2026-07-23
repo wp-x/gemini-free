@@ -4,7 +4,7 @@
 
 <h1 align="center">Gemini Free</h1>
 
-macOS 菜单栏应用，把 Gemini 网页端转成本地 OpenAI 兼容 API。纯 Swift，二进制 284K，内存占用约 14MB。
+macOS 菜单栏应用，把 Gemini 网页端转成本地 OpenAI 兼容 API。纯 Swift，内存占用约 14MB。
 
 基于 [gemini-web2api](https://github.com/Sophomoresty/gemini-web2api) 的协议逆向逻辑重写。
 
