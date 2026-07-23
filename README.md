@@ -8,6 +8,10 @@ macOS 菜单栏应用，把 Gemini 网页端转成本地 OpenAI 兼容 API。纯
 
 基于 [gemini-web2api](https://github.com/Sophomoresty/gemini-web2api) 的协议逆向逻辑重写。
 
+## 下载
+
+[Releases](../../releases/latest) 页有两种包：`GeminiFree.dmg`（拖入 Applications 安装，推荐）或 `GeminiFree-macOS.zip`。通用二进制，Intel 和 Apple 芯片的 Mac 都能跑。
+
 ## 用法
 
 双击 `Gemini Free.app`，菜单栏出现图标，服务起在 `localhost:8081`。
@@ -19,8 +23,6 @@ curl http://localhost:8081/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"model":"gemini-3.6-flash","messages":[{"role":"user","content":"你好"}]}'
 ```
-
-通用二进制，Intel 和 Apple 芯片的 Mac 都能跑。
 
 首次打开若提示"已损坏"或无法验证开发者，在终端跑一次：
 

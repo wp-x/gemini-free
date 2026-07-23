@@ -22,13 +22,22 @@ jobs:
       - name: Zip app
         run: ditto -c -k --keepParent "Gemini Free.app" GeminiFree-macOS.zip
 
+      - name: Make DMG
+        run: |
+          brew install create-dmg
+          ./make-dmg.sh
+
       - uses: actions/upload-artifact@v4
         with:
           name: GeminiFree-macOS
-          path: GeminiFree-macOS.zip
+          path: |
+            GeminiFree-macOS.zip
+            GeminiFree.dmg
 
       - name: Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: GeminiFree-macOS.zip
+          files: |
+            GeminiFree-macOS.zip
+            GeminiFree.dmg
