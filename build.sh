@@ -35,8 +35,8 @@ cat > "$BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundleName</key><string>$APP</string>
   <key>CFBundleDisplayName</key><string>Gemini Free</string>
   <key>CFBundleIdentifier</key><string>com.geminirelay.app</string>
-  <key>CFBundleVersion</key><string>1.0</string>
-  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>CFBundleVersion</key><string>1.1</string>
+  <key>CFBundleShortVersionString</key><string>1.1</string>
   <key>CFBundleExecutable</key><string>$APP</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
@@ -47,5 +47,9 @@ cat > "$BUNDLE/Contents/Info.plist" <<PLIST
 PLIST
 
 codesign --force --deep --sign - "$BUNDLE" 2>/dev/null || true
+
+# 重新注册，强制 Finder 刷新图标缓存（macOS 按 bundle id 缓存，否则显示旧图标）
+LSREG=/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister
+[ -x "$LSREG" ] && "$LSREG" -f "$PWD/$BUNDLE" 2>/dev/null || true
 
 echo "完成：$(pwd)/$BUNDLE"

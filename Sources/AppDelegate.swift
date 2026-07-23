@@ -38,8 +38,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(launch)
 
         menu.addItem(.separator())
+        menu.addItem(withTitle: "关于 Gemini Free", action: #selector(showAbout), keyEquivalent: "").target = self
         menu.addItem(withTitle: "退出", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         statusItem.menu = menu
+    }
+
+    @objc private func showAbout() {
+        let url = "https://github.com/wp-x/gemini-free"
+        let credits = NSMutableAttributedString(string: "开源项目\n")
+        credits.append(NSAttributedString(string: url, attributes: [.link: URL(string: url)!]))
+        NSApp.orderFrontStandardAboutPanel(options: [.credits: credits, .applicationName: "Gemini Free"])
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     private func refresh() {
