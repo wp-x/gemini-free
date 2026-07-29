@@ -157,7 +157,7 @@ final class HTTPServer {
         }
         let stream = req["stream"] as? Bool ?? false
         let cid = "chatcmpl-" + randomHex(12)
-        let toolsActive = tools != nil && !(toolChoice as? String == "none")
+        let toolsActive = hasActiveTools(tools, toolChoice: toolChoice)
 
         // 纯流式（无工具）：边生成边推送，客户端断开则取消上游请求
         if stream && !toolsActive {

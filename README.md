@@ -24,6 +24,16 @@ curl http://localhost:8081/v1/chat/completions \
   -d '{"model":"gemini-3.6-flash","messages":[{"role":"user","content":"你好"}]}'
 ```
 
+流式输出需在请求中设置 `"stream": true`：
+
+```bash
+curl -N http://localhost:8081/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemini-3.6-flash","stream":true,"messages":[{"role":"user","content":"你好"}]}'
+```
+
+普通对话会以 OpenAI 兼容的 SSE 增量返回。工具调用需要先完整解析模型生成的 `tool_call` 块，因此可能在生成完成后才返回；客户端固定传入空的 `"tools": []` 不会影响普通对话的流式输出。
+
 首次打开若提示"已损坏"或无法验证开发者，在终端跑一次：
 
 ```bash

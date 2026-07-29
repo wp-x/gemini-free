@@ -16,6 +16,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Test
+        run: |
+          swiftc Sources/Prompt.swift Sources/Util.swift Tests/StreamRoutingTests.swift -o /tmp/stream-routing-tests
+          /tmp/stream-routing-tests
+
       - name: Build
         run: ./build.sh
 

@@ -1,5 +1,9 @@
 import Foundation
 
+func hasActiveTools(_ tools: [Any]?, toolChoice: Any) -> Bool {
+    !(tools?.isEmpty ?? true) && !(toolChoice as? String == "none")
+}
+
 // OpenAI messages -> 单条 prompt（图片输入不支持，忽略），移植自上游 tools.py
 func messagesToPrompt(_ messages: [Any], tools: [Any]?, toolChoice: Any?) -> String {
     var parts: [String] = []
