@@ -5,6 +5,7 @@ cd "$(dirname "$0")"
 APP="Gemini Free"
 BUNDLE="$APP.app"
 BINDIR="$BUNDLE/Contents/MacOS"
+VERSION="1.3"
 
 rm -rf "$BUNDLE"
 mkdir -p "$BINDIR"
@@ -35,8 +36,8 @@ cat > "$BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundleName</key><string>$APP</string>
   <key>CFBundleDisplayName</key><string>Gemini Free</string>
   <key>CFBundleIdentifier</key><string>com.geminirelay.app</string>
-  <key>CFBundleVersion</key><string>1.1</string>
-  <key>CFBundleShortVersionString</key><string>1.1</string>
+  <key>CFBundleVersion</key><string>$VERSION</string>
+  <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleExecutable</key><string>$APP</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
