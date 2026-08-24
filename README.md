@@ -4,7 +4,7 @@
 
 <h1 align="center">Gemini Free</h1>
 
-macOS 菜单栏应用，把 Gemini 网页端转成本地 OpenAI 兼容 API。纯 Swift，内存占用约 14MB。
+macOS 菜单栏应用，把 Gemini 网页端转成本地 OpenAI / Anthropic Messages 兼容 API。纯 Swift，内存占用约 14MB。
 
 基于 [gemini-web2api](https://github.com/Sophomoresty/gemini-web2api) 的协议逆向逻辑重写。
 
@@ -31,6 +31,26 @@ curl -N http://localhost:8081/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"model":"gemini-3.6-flash","stream":true,"messages":[{"role":"user","content":"你好"}]}'
 ```
+
+## Claude Code 与工具调用
+
+Gemini Free 实现了 Claude Code 使用的 `POST /v1/messages` 与 `POST /v1/messages/count_tokens`。Claude Code 发来的 `input_schema` 会转换为 Gemini 网页端可理解的本地工具协议；Gemini 返回的调用会转换为 Anthropic `tool_use` 内容块，Claude Code 执行工具后发回的 `tool_result` 也会进入下一轮上下文。
+
+先启动 Gemini Free，然后从同一个终端启动 Claude Code：
+
+```bash
+export ANTHROPIC_BASE_URL=http://127.0.0.1:8081
+export ANTHROPIC_AUTH_TOKEN=gemini-free
+export ANTHROPIC_CUSTOM_MODEL_OPTION=gemini-3.6-flash
+export ANTHROPIC_CUSTOM_MODEL_OPTION_NAME="Gemini 3.6 Flash (Gemini Free)"
+export ANTHROPIC_MODEL=gemini-3.6-flash
+export ANTHROPIC_DEFAULT_MODEL=gemini-3.6-flash
+claude
+```
+
+如果在 Gemini Free 设置里配置了 API Key，把 `gemini-free` 换成其中一个 Key；未配置时该占位 token 仅用于让 Claude Code 启用网关模式。可在 Claude Code 的 `/status` 中确认 `Anthropic base URL` 指向本机。
+
+工具请求支持非流式响应和 Anthropic SSE 事件序列，包括 `tool_use`、`input_json_delta`、`tool_result` 续轮与 `stop_reason: tool_use`。由于 Gemini 网页接口没有公开任意函数声明能力，本项目通过严格的结构化提示词实现工具调用；带工具的响应需等模型完整生成后才能解析。模型生成畸形参数或调用未声明工具时，接口会明确返回 `502`，不会把错误伪装成普通文本。
 
 普通对话会以 OpenAI 兼容的 SSE 增量返回。工具调用需要先完整解析模型生成的 `tool_call` 块，因此可能在生成完成后才返回；客户端固定传入空的 `"tools": []` 不会影响普通对话的流式输出。
 
@@ -67,6 +87,6 @@ xattr -dr com.apple.quarantine "Gemini Free.app"
 
 ## 致谢
 
-协议逆向来自 [Sophomoresty/gemini-web2api](https://github.com/Sophomoresty/gemini-web2api)。
+Gemini 网页协议逆向来自 [Sophomoresty/gemini-web2api](https://github.com/Sophomoresty/gemini-web2api)。Anthropic Messages 与工具事件映射参考了 [gemini-for-claude-code](https://github.com/coffeegrind123/gemini-for-claude-code)、[UniClaudeProxy](https://github.com/vibheksoni/UniClaudeProxy) 和 [Anthropic 官方流式协议](https://platform.claude.com/docs/en/build-with-claude/streaming)。
 
 MIT

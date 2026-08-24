@@ -1,117 +1,120 @@
 import Foundation
 
-func hasActiveTools(_ tools: [Any]?, toolChoice: Any) -> Bool {
-    !(tools?.isEmpty ?? true) && !(toolChoice as? String == "none")
-}
-
-// OpenAI messages -> 单条 prompt（图片输入不支持，忽略），移植自上游 tools.py
+// OpenAI messages -> 单条 prompt（图片输入不支持，明确告知模型）
 func messagesToPrompt(_ messages: [Any], tools: [Any]?, toolChoice: Any?) -> String {
     var parts: [String] = []
-
-    if let tools = tools, !(toolChoice as? String == "none") {
-        var toolDefs: [[String: Any]] = []
-        for t in tools {
-            guard let tool = t as? [String: Any] else { continue }
-            let fn = (tool["type"] as? String == "function" ? tool["function"] as? [String: Any] : nil) ?? tool
-            toolDefs.append([
-                "name": fn["name"] ?? tool["name"] ?? "",
-                "description": fn["description"] ?? tool["description"] ?? "",
-                "parameters": fn["parameters"] ?? tool["parameters"] ?? [:],
-            ])
-        }
-        if !toolDefs.isEmpty {
-            let constraint = toolChoiceInstruction(toolChoice)
-            let defsJSON = jsonString(toolDefs, pretty: true)
-            parts.append(
-                "# Tool Use\n\n"
-                + "You can call the following tools. Call format:\n"
-                + "```tool_call\n{\"name\": \"func_name\", \"arguments\": {...}}\n```\n"
-                + "When calling tools, output ONLY the tool_call block(s).\n\n"
-                + "Available tools:\n\(defsJSON)\(constraint)")
-        }
+    if hasActiveTools(tools, toolChoice: toolChoice ?? "auto"),
+       let section = toolUseSection(tools, toolChoice: toolChoice) {
+        parts.append(section)
     }
 
-    for m in messages {
-        guard let msg = m as? [String: Any] else { continue }
-        let role = msg["role"] as? String ?? "user"
-        var content = ""
-        if let s = msg["content"] as? String {
-            content = s
-        } else if let arr = msg["content"] as? [Any] {
-            var textParts: [String] = []
-            for c in arr {
-                guard let c = c as? [String: Any] else { continue }
-                let type = c["type"] as? String
-                if type == "text" || type == "input_text" {
-                    textParts.append(c["text"] as? String ?? "")
-                } else if type == "image_url" || type == "image" {
-                    textParts.append("[Note: Image input not supported in this API. Please describe the image in text.]")
-                }
-            }
-            content = textParts.joined(separator: " ")
-        }
-
-        switch role {
-        case "system":
-            parts.append("[System instruction]: \(content)")
-        case "assistant":
-            if let tcs = msg["tool_calls"] as? [Any], !tcs.isEmpty {
-                var tcStrs: [String] = []
-                for tc in tcs {
-                    guard let tc = tc as? [String: Any], let fn = tc["function"] as? [String: Any] else { continue }
-                    let name = fn["name"] as? String ?? ""
-                    let args = fn["arguments"] as? String ?? "{}"
-                    tcStrs.append("```tool_call\n{\"name\": \"\(name)\", \"arguments\": \(args)}\n```")
-                }
-                parts.append("[Assistant]: \(content)\n" + tcStrs.joined(separator: "\n"))
-            } else {
-                parts.append("[Assistant]: \(content)")
-            }
-        case "tool":
-            let name = msg["name"] as? String ?? ""
-            parts.append("[Tool result for \(name)]: \(content)")
-        default:
-            if !content.isEmpty { parts.append(content) }
-        }
+    for value in messages {
+        guard let message = value as? [String: Any] else { continue }
+        let role = message["role"] as? String ?? "user"
+        let content = openAIContent(message["content"])
+        parts.append(openAIMessagePart(message, role: role, content: content))
     }
-
     return parts.filter { !$0.isEmpty }.joined(separator: "\n\n")
 }
 
-private func toolChoiceInstruction(_ choice: Any?) -> String {
-    if let s = choice as? String {
-        if s == "none" { return "\n\nIMPORTANT: Do NOT call any tools. Respond with text only." }
-        if s == "required" { return "\n\nIMPORTANT: You MUST call at least one tool. Do not respond with text only." }
-    }
-    if let d = choice as? [String: Any], let fn = d["function"] as? [String: Any],
-       let name = fn["name"] as? String, !name.isEmpty {
-        return "\n\nIMPORTANT: You MUST call the tool \"\(name)\". Do not call other tools."
-    }
-    return ""
+func toolUseSection(_ tools: [Any]?, toolChoice: Any?) -> String? {
+    let definitions = toolDefinitions(tools)
+    guard !definitions.isEmpty else { return nil }
+    let serialized = jsonString(definitions, pretty: true)
+    return """
+    # Local Tool Protocol
+
+    The tools below are real and are executed by the client in the user's environment. When a task requires files, shell commands, search, or another listed capability, call the appropriate tool instead of claiming that you cannot access it or inventing a result.
+
+    Use exactly this format:
+    ```tool_call
+    {"name": "tool_name", "arguments": {}}
+    ```
+    Output only one or more tool_call blocks when calling tools. Arguments must be one JSON object. After a tool result arrives, continue from that result.
+
+    Available tools:
+    \(serialized)\(toolChoiceInstruction(toolChoice))
+    """
 }
 
-// 从模型输出提取 tool_call 块，返回 (clean_text, tool_calls)
-func parseToolCalls(_ text: String) -> (String, [[String: Any]]) {
-    var toolCalls: [[String: Any]] = []
-    let ns = text as NSString
-    let regex = try! NSRegularExpression(pattern: "```tool_call\\s*\\n(.*?)\\n```", options: [.dotMatchesLineSeparators])
-    let matches = regex.matches(in: text, range: NSRange(location: 0, length: ns.length))
-    var clean = ""
-    var last = 0
-    for m in matches {
-        clean += ns.substring(with: NSRange(location: last, length: m.range.location - last))
-        last = m.range.location + m.range.length
-        let inner = ns.substring(with: m.range(at: 1)).trimmingCharacters(in: .whitespacesAndNewlines)
-        if let data = inner.data(using: .utf8),
-           let d = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-           let name = d["name"] as? String {
-            toolCalls.append([
-                "id": "call_" + randomHex(8),
-                "type": "function",
-                "function": ["name": name, "arguments": jsonString(d["arguments"] ?? [:])],
-            ])
-        }
+func toolDefinitions(_ tools: [Any]?) -> [[String: Any]] {
+    guard let tools = tools else { return [] }
+    return tools.compactMap { value in
+        guard let tool = value as? [String: Any] else { return nil }
+        let function = openAIFunction(tool)
+        guard let name = (function["name"] ?? tool["name"]) as? String, !name.isEmpty else { return nil }
+        return [
+            "name": name,
+            "description": function["description"] ?? tool["description"] ?? "",
+            "parameters": function["parameters"] ?? tool["input_schema"] ?? tool["parameters"] ?? [:],
+        ]
     }
-    clean += ns.substring(from: last)
-    return (clean.trimmingCharacters(in: .whitespacesAndNewlines), toolCalls)
+}
+
+private func openAIFunction(_ tool: [String: Any]) -> [String: Any] {
+    guard tool["type"] as? String == "function" else { return tool }
+    return tool["function"] as? [String: Any] ?? tool
+}
+
+private func openAIContent(_ value: Any?) -> String {
+    if let text = value as? String { return text }
+    guard let blocks = value as? [Any] else { return "" }
+    return blocks.compactMap { value -> String? in
+        guard let block = value as? [String: Any] else { return nil }
+        let type = block["type"] as? String
+        if type == "text" || type == "input_text" { return block["text"] as? String ?? "" }
+        if type == "image_url" || type == "image" { return "[Image input is not supported by Gemini Free.]" }
+        return nil
+    }.joined(separator: " ")
+}
+
+private func openAIMessagePart(_ message: [String: Any], role: String, content: String) -> String {
+    switch role {
+    case "system": return "[System instruction]\n\(content)"
+    case "assistant": return openAIAssistantPart(message, content: content)
+    case "tool":
+        let name = message["name"] as? String ?? message["tool_call_id"] as? String ?? "unknown"
+        return "[Tool result for \(name)]\n\(content)"
+    default: return content.isEmpty ? "" : "[User]\n\(content)"
+    }
+}
+
+private func openAIAssistantPart(_ message: [String: Any], content: String) -> String {
+    guard let calls = message["tool_calls"] as? [Any], !calls.isEmpty else {
+        return "[Assistant]\n\(content)"
+    }
+    let blocks = calls.compactMap { value -> String? in
+        guard let call = value as? [String: Any],
+              let function = call["function"] as? [String: Any],
+              let name = function["name"] as? String else { return nil }
+        let arguments = decodeArguments(function["arguments"]) ?? [:]
+        return toolCallBlock(name: name, arguments: arguments)
+    }
+    return (["[Assistant]\n\(content)"] + blocks).joined(separator: "\n")
+}
+
+private func decodeArguments(_ value: Any?) -> [String: Any]? {
+    if let object = value as? [String: Any] { return object }
+    guard let text = value as? String, let data = text.data(using: .utf8) else { return nil }
+    return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+}
+
+func toolCallBlock(name: String, arguments: [String: Any]) -> String {
+    let payload: [String: Any] = ["name": name, "arguments": arguments]
+    return "```tool_call\n\(jsonString(payload))\n```"
+}
+
+private func toolChoiceInstruction(_ value: Any?) -> String {
+    if let choice = value as? String {
+        if choice == "required" { return "\n\nIMPORTANT: You MUST call at least one tool." }
+        return choice == "none" ? "\n\nIMPORTANT: Do not call tools." : ""
+    }
+    guard let choice = value as? [String: Any] else { return "" }
+    let type = choice["type"] as? String
+    if type == "any" { return "\n\nIMPORTANT: You MUST call at least one tool." }
+    if type == "none" { return "\n\nIMPORTANT: Do not call tools." }
+    let openAIName = (choice["function"] as? [String: Any])?["name"] as? String
+    let name = openAIName ?? choice["name"] as? String
+    guard (type == "tool" || openAIName != nil), let name = name, !name.isEmpty else { return "" }
+    return "\n\nIMPORTANT: You MUST call only the tool \"\(name)\"."
 }

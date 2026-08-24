@@ -18,8 +18,10 @@ jobs:
 
       - name: Test
         run: |
-          swiftc Sources/Prompt.swift Sources/Util.swift Tests/StreamRoutingTests.swift -o /tmp/stream-routing-tests
+          swiftc Sources/Prompt.swift Sources/ToolCalling.swift Sources/AnthropicProtocol.swift Sources/Util.swift Tests/StreamRoutingTests.swift -o /tmp/stream-routing-tests
           /tmp/stream-routing-tests
+          swiftc Sources/AnthropicProtocol.swift Sources/Config.swift Sources/Engine.swift Sources/HTTPServer.swift Sources/HTTPServer+Anthropic.swift Sources/HTTPServer+OpenAI.swift Sources/Models.swift Sources/Prompt.swift Sources/ToolCalling.swift Sources/Util.swift Tests/HTTPServerIntegrationTests.swift -framework Network -framework CryptoKit -o /tmp/http-server-tests
+          /tmp/http-server-tests
 
       - name: Build
         run: ./build.sh

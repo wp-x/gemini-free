@@ -12,8 +12,24 @@ enum EngineError: Error, CustomStringConvertible {
     }
 }
 
+struct GenerationRequest {
+    let prompt: String
+    let mode: Int
+    let think: Int
+    let extra: [Int: Int]?
+}
+
+protocol TextGenerating {
+    func generate(_ request: GenerationRequest) throws -> String
+    func generateStream(
+        _ request: GenerationRequest,
+        isCancelled: @escaping () -> Bool,
+        onDelta: @escaping (String) -> Void
+    ) throws
+}
+
 // Gemini StreamGenerate 协议实现，忠实移植自上游 gemini.py
-final class Engine {
+final class Engine: TextGenerating {
     static let shared = Engine()
     private let cfg = Store.shared
 
@@ -76,16 +92,16 @@ final class Engine {
 
     // MARK: Payload
 
-    private func buildPayload(_ prompt: String, mode: Int, think: Int, extra: [Int: Int]?) -> String {
+    private func buildPayload(_ request: GenerationRequest) -> String {
         var inner: [Any] = Array(repeating: NSNull(), count: 102)
-        inner[0] = [prompt, 0, NSNull(), NSNull(), NSNull(), NSNull(), 0]
+        inner[0] = [request.prompt, 0, NSNull(), NSNull(), NSNull(), NSNull(), 0]
         inner[1] = ["en"]
         inner[2] = ["", "", "", NSNull(), NSNull(), NSNull(), NSNull(), NSNull(), NSNull(), ""]
         inner[6] = [0]
         inner[7] = 1
         inner[10] = 1
         inner[11] = 0
-        inner[17] = [[think]]
+        inner[17] = [[request.think]]
         inner[18] = 0
         inner[27] = 1
         inner[30] = [4]
@@ -94,8 +110,8 @@ final class Engine {
         inner[59] = UUID().uuidString.lowercased()
         inner[61] = [Any]()
         inner[68] = 1
-        inner[79] = mode
-        if let extra = extra { for (k, v) in extra { inner[k] = v } }
+        inner[79] = request.mode
+        if let extra = request.extra { for (k, v) in extra { inner[k] = v } }
 
         let innerStr = jsonString(inner)
         let outerStr = jsonString([NSNull(), innerStr])
@@ -149,10 +165,12 @@ final class Engine {
 
     // MARK: 请求（带重试），逐行回调
 
-    private func perform(_ prompt: String, mode: Int, think: Int, extra: [Int: Int]?,
-                         isCancelled: @escaping () -> Bool = { false },
-                         onLine: @escaping (String) -> Void) throws {
-        let body = buildPayload(prompt, mode: mode, think: think, extra: extra)
+    private func perform(
+        _ request: GenerationRequest,
+        isCancelled: @escaping () -> Bool = { false },
+        onLine: @escaping (String) -> Void
+    ) throws {
+        let body = buildPayload(request)
         var req = URLRequest(url: URL(string: requestURL())!)
         req.httpMethod = "POST"
         req.httpBody = body.data(using: .utf8)
@@ -207,10 +225,10 @@ final class Engine {
 
     // MARK: 对外 API
 
-    func generate(_ prompt: String, mode: Int, think: Int, extra: [Int: Int]?) throws -> String {
+    func generate(_ request: GenerationRequest) throws -> String {
         var longest = ""
         var longestN = 0
-        try perform(prompt, mode: mode, think: think, extra: extra) { line in
+        try perform(request) { line in
             for t in self.parseTexts(line) {
                 let n = t.unicodeScalars.count
                 if n > longestN { longest = t; longestN = n }
@@ -219,11 +237,13 @@ final class Engine {
         return cleanText(longest)
     }
 
-    func generateStream(_ prompt: String, mode: Int, think: Int, extra: [Int: Int]?,
-                        isCancelled: @escaping () -> Bool = { false },
-                        onDelta: @escaping (String) -> Void) throws {
+    func generateStream(
+        _ request: GenerationRequest,
+        isCancelled: @escaping () -> Bool = { false },
+        onDelta: @escaping (String) -> Void
+    ) throws {
         var prev = ""
-        try perform(prompt, mode: mode, think: think, extra: extra, isCancelled: isCancelled) { line in
+        try perform(request, isCancelled: isCancelled) { line in
             for t in self.parseTexts(line) {
                 let prevScalars = Array(prev.unicodeScalars)
                 let tScalars = Array(t.unicodeScalars)

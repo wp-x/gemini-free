@@ -1,13 +1,20 @@
 import Foundation
 import Network
 
-// 极简 HTTP/1.1 服务：仅实现自用所需的 OpenAI 兼容端点
+// 极简 HTTP/1.1 服务：实现 OpenAI Chat Completions 与 Anthropic Messages 端点
 final class HTTPServer {
-    static let shared = HTTPServer()
+    static let shared = HTTPServer(generator: Engine.shared, config: Store.shared)
     private var listener: NWListener?
     private let queue = DispatchQueue(label: "gemini.http", attributes: .concurrent)
     private(set) var running = false
-    private let cfg = Store.shared
+    var stateDidChange: ((Bool) -> Void)?
+    let generator: TextGenerating
+    let cfg: Store
+
+    init(generator: TextGenerating, config: Store) {
+        self.generator = generator
+        self.cfg = config
+    }
 
     func start() throws {
         stop()
@@ -23,17 +30,26 @@ final class HTTPServer {
         }
         l.newConnectionHandler = { [weak self] conn in self?.accept(conn) }
         l.stateUpdateHandler = { [weak self] state in
-            if case .failed = state { self?.running = false }
+            switch state {
+            case .ready: self?.updateRunning(true)
+            case .failed, .cancelled: self?.updateRunning(false)
+            default: break
+            }
         }
+        updateRunning(false)
         l.start(queue: queue)
         listener = l
-        running = true
     }
 
     func stop() {
         listener?.cancel()
         listener = nil
-        running = false
+        updateRunning(false)
+    }
+
+    private func updateRunning(_ value: Bool) {
+        running = value
+        stateDidChange?(value)
     }
 
     // MARK: 连接读取
@@ -116,7 +132,11 @@ final class HTTPServer {
         case ("GET", "/"):
             sendJSON(conn, ["status": "ok", "models": MODELS.map { $0.id }])
         case ("POST", "/v1/chat/completions"):
-            handleChat(conn, body: body)
+            handleOpenAIChat(conn, body: body)
+        case ("POST", "/v1/messages"):
+            handleAnthropicMessages(conn, body: body)
+        case ("POST", "/v1/messages/count_tokens"):
+            handleAnthropicTokenCount(conn, body: body)
         default:
             sendJSON(conn, ["error": "not found"], status: 404)
         }
@@ -141,84 +161,9 @@ final class HTTPServer {
         return false
     }
 
-    // MARK: /v1/chat/completions
-
-    private func handleChat(_ conn: NWConnection, body: Data) {
-        guard let req = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any] else {
-            sendJSON(conn, ["error": ["message": "invalid JSON"]], status: 400); return
-        }
-        let modelName = req["model"] as? String ?? cfg.defaultModel
-        let rm = resolveModel(modelName, defaultModel: cfg.defaultModel)
-        let tools = req["tools"] as? [Any]
-        let toolChoice = req["tool_choice"] ?? "auto"
-        let prompt = messagesToPrompt(req["messages"] as? [Any] ?? [], tools: tools, toolChoice: toolChoice)
-        if prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            sendJSON(conn, ["error": ["message": "empty prompt"]], status: 400); return
-        }
-        let stream = req["stream"] as? Bool ?? false
-        let cid = "chatcmpl-" + randomHex(12)
-        let toolsActive = hasActiveTools(tools, toolChoice: toolChoice)
-
-        // 纯流式（无工具）：边生成边推送，客户端断开则取消上游请求
-        if stream && !toolsActive {
-            let gone = ClientGone()
-            conn.stateUpdateHandler = { state in
-                switch state {
-                case .failed, .cancelled: gone.on = true
-                default: break
-                }
-            }
-            startSSE(conn)
-            do {
-                try Engine.shared.generateStream(prompt, mode: rm.mode, think: rm.think, extra: rm.extra,
-                                                 isCancelled: { gone.on }) { delta in
-                    let chunk: [String: Any] = ["id": cid, "object": "chat.completion.chunk", "created": nowUnix(),
-                        "model": rm.name, "choices": [["index": 0, "delta": ["content": delta], "finish_reason": NSNull()]]]
-                    self.sseSend(conn, "data: \(jsonString(chunk))\n\n", gone: gone)
-                }
-            } catch {
-                let chunk: [String: Any] = ["id": cid, "object": "chat.completion.chunk", "created": nowUnix(),
-                    "model": rm.name, "choices": [["index": 0, "delta": ["content": "[upstream error: \(error)]"], "finish_reason": NSNull()]]]
-                sseSend(conn, "data: \(jsonString(chunk))\n\n")
-            }
-            let end: [String: Any] = ["id": cid, "object": "chat.completion.chunk", "created": nowUnix(),
-                "model": rm.name, "choices": [["index": 0, "delta": [:], "finish_reason": "stop"]]]
-            sseSend(conn, "data: \(jsonString(end))\n\n")
-            sseFinish(conn, "data: [DONE]\n\n")
-            return
-        }
-
-        // 非流式 / 带工具
-        var text: String
-        do {
-            text = try Engine.shared.generate(prompt, mode: rm.mode, think: rm.think, extra: rm.extra)
-        } catch {
-            sendJSON(conn, ["error": ["message": "upstream error: \(error)"]], status: 502); return
-        }
-
-        var toolCalls: [[String: Any]] = []
-        if toolsActive, !text.isEmpty { (text, toolCalls) = parseToolCalls(text) }
-        var msg: [String: Any] = ["role": "assistant", "content": text.isEmpty ? NSNull() : text]
-        if !toolCalls.isEmpty { msg["tool_calls"] = toolCalls }
-        let finish = toolCalls.isEmpty ? "stop" : "tool_calls"
-
-        if stream {
-            startSSE(conn)
-            let chunk: [String: Any] = ["id": cid, "object": "chat.completion.chunk", "created": nowUnix(),
-                "model": rm.name, "choices": [["index": 0, "delta": msg, "finish_reason": finish]]]
-            sseSend(conn, "data: \(jsonString(chunk))\n\n")
-            sseFinish(conn, "data: [DONE]\n\n")
-        } else {
-            let pt = prompt.count / 4, ct = text.count / 4
-            sendJSON(conn, ["id": cid, "object": "chat.completion", "created": nowUnix(), "model": rm.name,
-                "choices": [["index": 0, "message": msg, "finish_reason": finish]],
-                "usage": ["prompt_tokens": pt, "completion_tokens": ct, "total_tokens": pt + ct]])
-        }
-    }
-
     // MARK: 写响应
 
-    private func sendJSON(_ conn: NWConnection, _ obj: Any, status: Int = 200) {
+    func sendJSON(_ conn: NWConnection, _ obj: Any, status: Int = 200) {
         let body = Data(jsonString(obj).utf8)
         var head = "HTTP/1.1 \(status) \(reason(status))\r\n"
         head += "Content-Type: application/json\r\n"
@@ -233,7 +178,7 @@ final class HTTPServer {
         conn.send(content: Data(s.utf8), completion: .contentProcessed { _ in if close { conn.cancel() } })
     }
 
-    private func startSSE(_ conn: NWConnection) {
+    func startSSE(_ conn: NWConnection) {
         let head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n"
         conn.send(content: Data(head.utf8), completion: .contentProcessed { _ in })
     }
@@ -241,13 +186,13 @@ final class HTTPServer {
     // ponytail: on 标记无锁读写，Bool 竞争无害，仅用于尽早停止上游
     final class ClientGone { var on = false }
 
-    private func sseSend(_ conn: NWConnection, _ s: String, gone: ClientGone? = nil) {
+    func sseSend(_ conn: NWConnection, _ s: String, gone: ClientGone? = nil) {
         conn.send(content: Data(s.utf8), completion: .contentProcessed { err in
             if err != nil { gone?.on = true }
         })
     }
 
-    private func sseFinish(_ conn: NWConnection, _ s: String) {
+    func sseFinish(_ conn: NWConnection, _ s: String) {
         conn.send(content: Data(s.utf8), completion: .contentProcessed { _ in conn.cancel() })
     }
 

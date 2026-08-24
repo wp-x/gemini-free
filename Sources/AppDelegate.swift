@@ -10,6 +10,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         cfg.load()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.title = "◐"
+        HTTPServer.shared.stateDidChange = { [weak self] _ in
+            DispatchQueue.main.async { self?.refresh() }
+        }
         buildMenu()
         startServer()
     }
