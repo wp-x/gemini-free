@@ -10,7 +10,8 @@ struct ModelDef {
 }
 
 let MODELS: [ModelDef] = [
-    ModelDef(id: "gemini-3.7-flash", mode: 1, think: 4, desc: "Latest all-around model (Gemini 3.7 Flash)", extra: nil),
+    ModelDef(id: "gemini-3.8-flash", mode: 1, think: 4, desc: "Latest all-around model (Gemini 3.8 Flash)", extra: nil),
+    ModelDef(id: "gemini-3.7-flash", mode: 1, think: 4, desc: "Previous all-around model (Gemini 3.7 Flash)", extra: nil),
     ModelDef(id: "gemini-3.6-flash", mode: 1, think: 4, desc: "Latest all-around model (Gemini 3.6 Flash)", extra: nil),
     ModelDef(id: "gemini-3.5-flash", mode: 1, think: 4, desc: "Alias for gemini-3.6-flash (backend upgraded)", extra: nil),
     ModelDef(id: "gemini-3.5-flash-thinking", mode: 2, think: 0, desc: "Deep thinking mode, longest output (~20k chars)", extra: nil),

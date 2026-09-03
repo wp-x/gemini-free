@@ -35,11 +35,20 @@ struct HTTPServerIntegrationTests {
         try server.start()
         defer { server.stop() }
         try waitUntilReady(server)
+        testGemini38Routing()
         try testNonStreamingToolUse()
         try testStreamingToolUse()
         try testTokenCount()
         try testInvalidToolChoices()
         print("HTTPServerIntegrationTests passed")
+    }
+
+    private static func testGemini38Routing() {
+        let model = resolveModel("gemini-3.8-flash", defaultModel: "gemini-3.6-flash")
+        precondition(model.name == "gemini-3.8-flash")
+        precondition(model.mode == 1)
+        precondition(model.think == 4)
+        precondition(model.extra == nil)
     }
 
     private static func waitUntilReady(_ server: HTTPServer) throws {
