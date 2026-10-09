@@ -8,6 +8,9 @@ final class HTTPServer {
     private let queue = DispatchQueue(label: "gemini.http", attributes: .concurrent)
     private(set) var running = false
     var stateDidChange: ((Bool) -> Void)?
+    private var wantRunning = false
+    private var retryItem: DispatchWorkItem?
+    private var retryDelay: TimeInterval = 2
     let generator: TextGenerating
     let cfg: Store
 
@@ -18,6 +21,7 @@ final class HTTPServer {
 
     func start() throws {
         stop()
+        wantRunning = true
         let params = NWParameters.tcp
         params.allowLocalEndpointReuse = true
         let port = NWEndpoint.Port(rawValue: UInt16(cfg.port))!
@@ -29,22 +33,52 @@ final class HTTPServer {
             l = try NWListener(using: params)
         }
         l.newConnectionHandler = { [weak self] conn in self?.accept(conn) }
-        l.stateUpdateHandler = { [weak self] state in
+        l.stateUpdateHandler = { [weak self, weak l] state in
+            guard let self = self, let l = l, self.listener === l else { return }
             switch state {
-            case .ready: self?.updateRunning(true)
-            case .failed, .cancelled: self?.updateRunning(false)
+            case .ready:
+                self.retryDelay = 2
+                self.updateRunning(true)
+            case .failed(let err):
+                // 监听失败（休眠唤醒、端口冲突等）：自动退避重启，不再永久停摆
+                NSLog("GeminiFree: listener failed: \(err), will restart")
+                self.updateRunning(false)
+                self.scheduleRestart()
+            case .cancelled:
+                self.updateRunning(false)
             default: break
             }
         }
         updateRunning(false)
-        l.start(queue: queue)
         listener = l
+        l.start(queue: queue)
     }
 
     func stop() {
+        wantRunning = false
+        retryItem?.cancel()
+        retryItem = nil
         listener?.cancel()
         listener = nil
         updateRunning(false)
+    }
+
+    private func scheduleRestart() {
+        guard wantRunning, retryItem == nil else { return }
+        let delay = retryDelay
+        retryDelay = min(retryDelay * 2, 30)
+        let item = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            self.retryItem = nil
+            guard self.wantRunning else { return }
+            do { try self.start() }
+            catch {
+                NSLog("GeminiFree: restart failed: \(error)")
+                self.scheduleRestart()
+            }
+        }
+        retryItem = item
+        queue.asyncAfter(deadline: .now() + delay, execute: item)
     }
 
     private func updateRunning(_ value: Bool) {
