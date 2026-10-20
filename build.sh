@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 APP="Gemini Free"
 BUNDLE="$APP.app"
 BINDIR="$BUNDLE/Contents/MacOS"
-VERSION="1.6"
+VERSION="1.7"
 
 rm -rf "$BUNDLE"
 mkdir -p "$BINDIR"
@@ -47,7 +47,7 @@ cat > "$BUNDLE/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-codesign --force --deep --sign - "$BUNDLE" 2>/dev/null || true
+codesign --force --deep --sign - "$BUNDLE"
 
 # 重新注册，强制 Finder 刷新图标缓存（macOS 按 bundle id 缓存，否则显示旧图标）
 LSREG=/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister

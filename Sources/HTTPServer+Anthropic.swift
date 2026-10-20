@@ -19,6 +19,8 @@ extension HTTPServer {
             try generateAnthropicMessage(conn, context: context)
         } catch let error as AnthropicProtocolError {
             sendAnthropicError(conn, status: 400, message: error.description)
+        } catch let error as ModelResolutionError {
+            sendAnthropicError(conn, status: 400, message: error.description)
         } catch let error as ToolCallParseError {
             sendAnthropicError(conn, status: 502, message: "upstream tool protocol error: \(error)")
         } catch {
@@ -41,7 +43,7 @@ extension HTTPServer {
 
     private func anthropicContext(_ request: [String: Any]) throws -> AnthropicRequestContext {
         let modelName = request["model"] as? String ?? cfg.defaultModel
-        let model = resolveModel(modelName, defaultModel: cfg.defaultModel)
+        let model = try resolveModel(modelName, defaultModel: cfg.defaultModel)
         let prompt = try anthropicMessagesToPrompt(request)
         let tools = request["tools"] as? [Any]
         let toolChoice = request["tool_choice"] ?? ["type": "auto"]

@@ -4,10 +4,11 @@ import CryptoKit
 enum EngineError: Error, CustomStringConvertible {
     case http(Int)
     case other(String)
+    case response(String)
     var description: String {
         switch self {
         case .http(let c): return "HTTP \(c)"
-        case .other(let s): return s
+        case .other(let s), .response(let s): return s
         }
     }
 }
@@ -74,7 +75,7 @@ final class Engine: TextGenerating {
         return "/u/\(u)"
     }
 
-    private func buildHeaders() -> [String: String] {
+    private func buildHeaders(_ request: GenerationRequest) -> [String: String] {
         let prefix = accountPrefix()
         var h: [String: String] = [
             "Content-Type": "application/x-www-form-urlencoded",
@@ -87,38 +88,11 @@ final class Engine: TextGenerating {
         let (cookieStr, sapisid) = loadCookie()
         if !cookieStr.isEmpty { h["Cookie"] = cookieStr }
         if let sapisid = sapisid { h["Authorization"] = sapisidHash(sapisid) }
+        h.merge(GeminiPayload.modelHeaders(for: request)) { _, value in value }
         return h
     }
 
     // MARK: Payload
-
-    private func buildPayload(_ request: GenerationRequest) -> String {
-        var inner: [Any] = Array(repeating: NSNull(), count: 102)
-        inner[0] = [request.prompt, 0, NSNull(), NSNull(), NSNull(), NSNull(), 0]
-        inner[1] = ["en"]
-        inner[2] = ["", "", "", NSNull(), NSNull(), NSNull(), NSNull(), NSNull(), NSNull(), ""]
-        inner[6] = [0]
-        inner[7] = 1
-        inner[10] = 1
-        inner[11] = 0
-        inner[17] = [[request.think]]
-        inner[18] = 0
-        inner[27] = 1
-        inner[30] = [4]
-        inner[41] = [2]
-        inner[53] = 0
-        inner[59] = UUID().uuidString.lowercased()
-        inner[61] = [Any]()
-        inner[68] = 1
-        inner[79] = request.mode
-        if let extra = request.extra { for (k, v) in extra { inner[k] = v } }
-
-        let innerStr = jsonString(inner)
-        let outerStr = jsonString([NSNull(), innerStr])
-        var body = "f.req=" + formEncode(outerStr)
-        if let x = cfg.xsrfToken, !x.isEmpty { body += "&at=" + formEncode(x) }
-        return body
-    }
 
     private func requestURL() -> String {
         let reqid = nowUnix() % 1000000
@@ -145,37 +119,19 @@ final class Engine: TextGenerating {
         return t
     }
 
-    private func parseTexts(_ line: String) -> [String] {
-        guard line.contains("\"wrb.fr\""), line.unicodeScalars.count >= 200,
-              let data = line.data(using: .utf8),
-              let arr = (try? JSONSerialization.jsonObject(with: data)) as? [Any],
-              let a0 = arr.first as? [Any], a0.count > 2,
-              let innerStr = a0[2] as? String, innerStr.unicodeScalars.count >= 50,
-              let innerData = innerStr.data(using: .utf8),
-              let inner = (try? JSONSerialization.jsonObject(with: innerData)) as? [Any],
-              inner.count > 4, let part4 = inner[4] as? [Any] else { return [] }
-        var texts: [String] = []
-        for part in part4 {
-            if let pl = part as? [Any], pl.count > 1, let sub = pl[1] as? [Any] {
-                for t in sub { if let s = t as? String, !s.isEmpty { texts.append(s) } }
-            }
-        }
-        return texts
-    }
-
     // MARK: 请求（带重试），逐行回调
 
     private func perform(
         _ request: GenerationRequest,
         isCancelled: @escaping () -> Bool = { false },
-        onLine: @escaping (String) -> Void
+        onLine: @escaping (String) throws -> Void
     ) throws {
-        let body = buildPayload(request)
+        let body = GeminiPayload.body(for: request, xsrfToken: cfg.xsrfToken)
         var req = URLRequest(url: URL(string: requestURL())!)
         req.httpMethod = "POST"
         req.httpBody = body.data(using: .utf8)
         req.timeoutInterval = cfg.requestTimeoutSec
-        for (k, v) in buildHeaders() { req.setValue(v, forHTTPHeaderField: k) }
+        for (k, v) in buildHeaders(request) { req.setValue(v, forHTTPHeaderField: k) }
 
         var lastErr: Error = EngineError.other("no attempt")
         for attempt in 0..<cfg.retryAttempts {
@@ -185,6 +141,7 @@ final class Engine: TextGenerating {
             } catch {
                 // 4xx（cookie 失效等）重试无意义，直接抛出
                 if case EngineError.http(let c) = error, c < 500 { throw error }
+                if case EngineError.response = error { throw error }
                 lastErr = error
                 if attempt < cfg.retryAttempts - 1 {
                     log("Retry \(attempt + 1)/\(cfg.retryAttempts): \(error)")
@@ -196,7 +153,7 @@ final class Engine: TextGenerating {
     }
 
     private func streamRequest(_ req: URLRequest, isCancelled: @escaping () -> Bool,
-                               onLine: @escaping (String) -> Void) throws {
+                               onLine: @escaping (String) throws -> Void) throws {
         let collector = LineCollector(isCancelled: isCancelled, onLine: onLine)
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = cfg.requestTimeoutSec
@@ -217,7 +174,7 @@ final class Engine: TextGenerating {
         session.finishTasksAndInvalidate()
         if let e = collector.error {
             // 客户端断开触发的主动取消视为正常结束
-            if (e as NSError).code == NSURLErrorCancelled { return }
+            if isCancelled(), (e as NSError).code == NSURLErrorCancelled { return }
             throw e
         }
         if let code = collector.statusCode, code >= 400 { throw EngineError.http(code) }
@@ -229,12 +186,14 @@ final class Engine: TextGenerating {
         var longest = ""
         var longestN = 0
         try perform(request) { line in
-            for t in self.parseTexts(line) {
-                let n = t.unicodeScalars.count
-                if n > longestN { longest = t; longestN = n }
+            for text in try GeminiResponseFrame.texts(from: line, for: request) {
+                let count = text.unicodeScalars.count
+                if count > longestN { longest = text; longestN = count }
             }
         }
-        return cleanText(longest)
+        let output = cleanText(longest)
+        guard !output.isEmpty else { throw EngineError.response("Gemini returned no text") }
+        return output
     }
 
     func generateStream(
@@ -244,31 +203,36 @@ final class Engine: TextGenerating {
     ) throws {
         var prev = ""
         try perform(request, isCancelled: isCancelled) { line in
-            for t in self.parseTexts(line) {
-                let prevScalars = Array(prev.unicodeScalars)
-                let tScalars = Array(t.unicodeScalars)
-                if tScalars.count > prevScalars.count {
-                    let deltaScalars = tScalars[prevScalars.count...]
-                    let delta = self.stripArtifacts(String(String.UnicodeScalarView(deltaScalars)))
-                    if !delta.isEmpty { onDelta(delta) }
-                    prev = t
-                }
+            for text in try GeminiResponseFrame.texts(from: line, for: request) {
+                prev = self.emitDelta(text, previous: prev, onDelta: onDelta)
             }
         }
+        if prev.isEmpty && !isCancelled() { throw EngineError.response("Gemini returned no text") }
+    }
+
+    private func emitDelta(
+        _ text: String, previous: String, onDelta: (String) -> Void
+    ) -> String {
+        let previousCount = previous.unicodeScalars.count
+        let scalars = Array(text.unicodeScalars)
+        guard scalars.count > previousCount else { return previous }
+        let delta = stripArtifacts(String(String.UnicodeScalarView(scalars[previousCount...])))
+        if !delta.isEmpty { onDelta(delta) }
+        return text
     }
 }
 
 // URLSession 流式收集器：按 \n 切行回调
 private final class LineCollector: NSObject, URLSessionDataDelegate {
     let isCancelled: () -> Bool
-    let onLine: (String) -> Void
+    let onLine: (String) throws -> Void
     let sem = DispatchSemaphore(value: 0)
     var error: Error?
     var statusCode: Int?
     weak var task: URLSessionDataTask?
     private var buffer = Data()
 
-    init(isCancelled: @escaping () -> Bool, onLine: @escaping (String) -> Void) {
+    init(isCancelled: @escaping () -> Bool, onLine: @escaping (String) throws -> Void) {
         self.isCancelled = isCancelled
         self.onLine = onLine
     }
@@ -281,17 +245,27 @@ private final class LineCollector: NSObject, URLSessionDataDelegate {
 
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
         if isCancelled() { task?.cancel(); return }
+        guard error == nil else { return }
         buffer.append(data)
-        while let nl = buffer.firstIndex(of: 0x0A) {
+        while error == nil, let nl = buffer.firstIndex(of: 0x0A) {
             let lineData = Data(buffer[buffer.startIndex..<nl])
             buffer = Data(buffer[buffer.index(after: nl)...])
-            onLine(String(decoding: lineData, as: UTF8.self))
+            emitLine(lineData)
         }
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError err: Error?) {
-        if !buffer.isEmpty { onLine(String(decoding: buffer, as: UTF8.self)); buffer = Data() }
-        error = err
+        if error == nil, !buffer.isEmpty { emitLine(buffer); buffer = Data() }
+        if error == nil { error = err }
         sem.signal()
+    }
+
+    private func emitLine(_ data: Data) {
+        do {
+            try onLine(String(decoding: data, as: UTF8.self))
+        } catch {
+            self.error = error
+            task?.cancel()
+        }
     }
 }

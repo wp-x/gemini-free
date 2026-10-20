@@ -10,6 +10,9 @@ private final class FakeGenerator: TextGenerating {
         isCancelled: @escaping () -> Bool,
         onDelta: @escaping (String) -> Void
     ) throws {
+        if request.prompt.contains("force_upstream_error") {
+            throw EngineError.response("Argon routing failed")
+        }
         onDelta("fake stream")
     }
 }
@@ -35,16 +38,18 @@ struct HTTPServerIntegrationTests {
         try server.start()
         defer { server.stop() }
         try waitUntilReady(server)
-        testGemini38Routing()
+        try testGemini38Routing()
         try testNonStreamingToolUse()
         try testStreamingToolUse()
         try testTokenCount()
         try testInvalidToolChoices()
+        try testInvalidArgonThinkingLevels()
+        try testStreamingUpstreamError()
         print("HTTPServerIntegrationTests passed")
     }
 
-    private static func testGemini38Routing() {
-        let model = resolveModel("gemini-3.8-flash", defaultModel: "gemini-3.6-flash")
+    private static func testGemini38Routing() throws {
+        let model = try resolveModel("gemini-3.8-flash", defaultModel: "gemini-3.6-flash")
         precondition(model.name == "gemini-3.8-flash")
         precondition(model.mode == 1)
         precondition(model.think == 4)
@@ -102,6 +107,30 @@ struct HTTPServerIntegrationTests {
         ]
         let openAIResult = try post(path: "/v1/chat/completions", payload: openAI)
         precondition(openAIResult.status == 400)
+    }
+
+    private static func testInvalidArgonThinkingLevels() throws {
+        let payload: [String: Any] = [
+            "model": "gemini-4-argon@think=0",
+            "messages": [["role": "user", "content": "test"]],
+        ]
+        for path in ["/v1/chat/completions", "/v1/messages"] {
+            let result = try post(path: path, payload: payload)
+            precondition(result.status == 400 && result.text.contains("Invalid Argon thinking level"))
+        }
+    }
+
+    private static func testStreamingUpstreamError() throws {
+        let payload: [String: Any] = [
+            "model": "gemini-4-argon", "stream": true,
+            "messages": [["role": "user", "content": "force_upstream_error"]],
+        ]
+        let result = try post(path: "/v1/chat/completions", payload: payload)
+        precondition(result.text.contains("\"type\":\"upstream_error\""))
+        precondition(result.text.contains("Argon routing failed"))
+        precondition(result.text.contains("data: [DONE]"))
+        precondition(!result.text.contains("\"finish_reason\":\"stop\""))
+        precondition(!result.text.contains("\"content\":\"[upstream error"))
     }
 
     private static func requestPayload(stream: Bool) -> [String: Any] {

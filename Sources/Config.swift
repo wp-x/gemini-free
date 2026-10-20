@@ -9,10 +9,10 @@ final class Store {
     var retryAttempts = 3
     var retryDelaySec = 2.0
     var requestTimeoutSec = 180.0
-    var geminiBl = "boq_assistant-bard-web-server_20260716.08_p0"
+    var geminiBl = "boq_gemini-web-uiserver_20261019.01_p0"
     var authUser: String? = nil
     var xsrfToken: String? = nil
-    var defaultModel = "gemini-3.6-flash"
+    var defaultModel = "gemini-4-argon"
     var logRequests = true
     var cookieFile: String? = nil
     var proxy: String? = nil

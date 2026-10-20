@@ -44,7 +44,7 @@ extension HTTPServer {
 
     private func openAIContext(_ request: [String: Any]) throws -> OpenAIChatContext {
         let modelName = request["model"] as? String ?? cfg.defaultModel
-        let model = resolveModel(modelName, defaultModel: cfg.defaultModel)
+        let model = try resolveModel(modelName, defaultModel: cfg.defaultModel)
         let tools = request["tools"] as? [Any]
         let toolChoice = request["tool_choice"] ?? "auto"
         let policy = toolCallPolicy(tools, toolChoice: toolChoice)
@@ -87,8 +87,9 @@ extension HTTPServer {
                 self.sseSend(conn, "data: \(jsonString(chunk))\n\n", gone: gone)
             }
         } catch {
-            let delta = ["content": "[upstream error: \(error)]"]
-            sseSend(conn, "data: \(jsonString(openAIChunk(context, delta: delta, finishReason: NSNull())))\n\n")
+            let failure = ["error": ["message": "upstream error: \(error)", "type": "upstream_error"]]
+            sseFinish(conn, "data: \(jsonString(failure))\n\ndata: [DONE]\n\n")
+            return
         }
         let end = openAIChunk(context, delta: [:], finishReason: "stop")
         sseSend(conn, "data: \(jsonString(end))\n\n")

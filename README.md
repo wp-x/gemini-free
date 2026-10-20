@@ -16,12 +16,12 @@ macOS 菜单栏应用，把 Gemini 网页端转成本地 OpenAI / Anthropic Mess
 
 双击 `Gemini Free.app`，菜单栏出现图标，服务起在 `localhost:8081`。
 
-客户端填：Base URL `http://localhost:8081/v1`，Model 填 `gemini-3.6-flash`。
+客户端填：Base URL `http://localhost:8081/v1`，Model 填 `gemini-4-argon`。Argon 需要已登录、具备对应模型权限的 Google 账号，在设置中配置 Cookie 文件；不使用 Argon 时可选择下方的 Flash 模型。
 
 ```bash
 curl http://localhost:8081/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{"model":"gemini-3.6-flash","messages":[{"role":"user","content":"你好"}]}'
+  -d '{"model":"gemini-4-argon","messages":[{"role":"user","content":"你好"}]}'
 ```
 
 流式输出需在请求中设置 `"stream": true`：
@@ -29,7 +29,7 @@ curl http://localhost:8081/v1/chat/completions \
 ```bash
 curl -N http://localhost:8081/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{"model":"gemini-3.6-flash","stream":true,"messages":[{"role":"user","content":"你好"}]}'
+  -d '{"model":"gemini-4-argon","stream":true,"messages":[{"role":"user","content":"你好"}]}'
 ```
 
 ## Claude Code 与工具调用
@@ -41,10 +41,10 @@ Gemini Free 实现了 Claude Code 使用的 `POST /v1/messages` 与 `POST /v1/me
 ```bash
 export ANTHROPIC_BASE_URL=http://127.0.0.1:8081
 export ANTHROPIC_AUTH_TOKEN=gemini-free
-export ANTHROPIC_CUSTOM_MODEL_OPTION=gemini-3.6-flash
-export ANTHROPIC_CUSTOM_MODEL_OPTION_NAME="Gemini 3.6 Flash (Gemini Free)"
-export ANTHROPIC_MODEL=gemini-3.6-flash
-export ANTHROPIC_DEFAULT_MODEL=gemini-3.6-flash
+export ANTHROPIC_CUSTOM_MODEL_OPTION=gemini-4-argon
+export ANTHROPIC_CUSTOM_MODEL_OPTION_NAME="Gemini 4 Argon (Gemini Free)"
+export ANTHROPIC_MODEL=gemini-4-argon
+export ANTHROPIC_DEFAULT_MODEL=gemini-4-argon
 claude
 ```
 
@@ -64,11 +64,17 @@ xattr -dr com.apple.quarantine "Gemini Free.app"
 
 ## 模型
 
+Gemini 4 Argon：`gemini-4-argon`（默认高档）、`gemini-4-argon-low`、`gemini-4-argon-medium` 与 `gemini-4-argon-high` 已通过真实 API 测试。需配置具有 Argon 权限的登录 Cookie，以及同一网页会话的 `xsrf_token`（`SNlM0e`）和 `gemini_bl`（`cfb2h`）。客户端同时支持 OpenAI 与 Anthropic 接口。应用会发送独立的 Argon 模型路由请求头，并核对上游实际返回的模型与思考等级；权限不足、会话失效导致降级时明确报错，不会把 Flash 回复当成 Argon。
+
+截至 2026-10-20，低、中、高三档均已核对上游响应元数据。过期或混用的会话参数可能使上游返回低档，遇到等级不匹配错误时需同步更新 Cookie、`xsrf_token` 与 `gemini_bl`。
+
+Argon 思考等级可用别名选择，也可使用 `@think=1`（低）、`@think=4`（中）、`@think=2`（高），例如 `gemini-4-argon@think=4`。这是网页端的新思考等级枚举，与旧模型的深度参数不同。
+
 免登录：`gemini-3.8-flash` `gemini-3.7-flash` `gemini-3.6-flash` `gemini-3.5-flash` `gemini-3.5-flash-thinking` `gemini-3.5-flash-thinking-lite` `gemini-auto` `gemini-flash-lite`
 
 要 Gemini Advanced 付费 cookie：`gemini-3.1-pro` `gemini-3.1-pro-enhanced`（没 cookie 也能调，静默回退 Flash）
 
-思考深度：模型名后加 `@think=N`，0 最深 4 最浅。
+旧模型保留 `@think=N` 兼容参数，沿用原有编码；Argon 的思考等级使用独立字段。
 
 ## 设置
 
@@ -83,6 +89,16 @@ xattr -dr com.apple.quarantine "Gemini Free.app"
 
 ```bash
 ./build.sh
+```
+
+运行回归测试：`bash test.sh`，每个测试进程限时 60 秒。已配置本机 Cookie 后，可手动测试真实 Argon 路由：
+
+```bash
+swiftc Sources/Config.swift Sources/Engine.swift Sources/GeminiPayload.swift \
+  Sources/GeminiResponse.swift Sources/Models.swift Sources/Util.swift \
+  Tests/LiveModelTests.swift -framework CryptoKit -o /tmp/gemini-live-model-tests
+/tmp/gemini-live-model-tests gemini-4-argon-low
+/tmp/gemini-live-model-tests gemini-4-argon --stream
 ```
 
 ## 致谢
