@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         cfg.load()
+        GeminiSessions.shared.start()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.title = "◐"
         HTTPServer.shared.stateDidChange = { [weak self] _ in
@@ -18,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        GeminiSessions.shared.stop()
         HTTPServer.shared.stop()
     }
 
@@ -98,6 +100,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func applySettings() {
         cfg.save()
+        GeminiSessions.shared.start()
         if HTTPServer.shared.running { HTTPServer.shared.stop(); startServer() } else { refresh() }
     }
 

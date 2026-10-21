@@ -31,8 +31,14 @@ protocol TextGenerating {
 
 // Gemini StreamGenerate 协议实现，忠实移植自上游 gemini.py
 final class Engine: TextGenerating {
-    static let shared = Engine()
-    private let cfg = Store.shared
+    static let shared = Engine(config: Store.shared, sessions: GeminiSessions.shared)
+    private let cfg: Store
+    private let sessions: GeminiSessionProviding
+
+    init(config: Store, sessions: GeminiSessionProviding) {
+        cfg = config
+        self.sessions = sessions
+    }
 
     func log(_ msg: String) {
         guard cfg.logRequests else { return }
@@ -41,27 +47,6 @@ final class Engine: TextGenerating {
     }
 
     // MARK: Cookie
-
-    private func loadCookie() -> (String, String?) {
-        guard let file = cfg.cookieFile, FileManager.default.fileExists(atPath: file),
-              let content = try? String(contentsOfFile: file, encoding: .utf8) else { return ("", nil) }
-        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.hasPrefix("{") {
-            if let data = trimmed.data(using: .utf8),
-               let d = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
-                let cookieStr = d["cookie"] as? String ?? ""
-                let sapisid = d["sapisid"] as? String
-                return (cookieStr, (sapisid?.isEmpty ?? true) ? nil : sapisid)
-            }
-            return ("", nil)
-        }
-        var sapisid: String? = nil
-        for pair in trimmed.components(separatedBy: "; ") {
-            let kv = pair.components(separatedBy: "=")
-            if kv.count >= 2, kv[0] == "SAPISID" { sapisid = kv.dropFirst().joined(separator: "=") }
-        }
-        return (trimmed, (sapisid?.isEmpty ?? true) ? nil : sapisid)
-    }
 
     private func sapisidHash(_ sapisid: String) -> String {
         let ts = nowUnix()
@@ -75,7 +60,8 @@ final class Engine: TextGenerating {
         return "/u/\(u)"
     }
 
-    private func buildHeaders(_ request: GenerationRequest) -> [String: String] {
+    private func buildHeaders(_ request: GenerationRequest,
+                              session: GeminiSessionSnapshot) -> [String: String] {
         let prefix = accountPrefix()
         var h: [String: String] = [
             "Content-Type": "application/x-www-form-urlencoded",
@@ -85,20 +71,19 @@ final class Engine: TextGenerating {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         ]
         if let u = cfg.authUser, !prefix.isEmpty { h["X-Goog-AuthUser"] = u }
-        let (cookieStr, sapisid) = loadCookie()
-        if !cookieStr.isEmpty { h["Cookie"] = cookieStr }
-        if let sapisid = sapisid { h["Authorization"] = sapisidHash(sapisid) }
+        if !session.cookie.isEmpty { h["Cookie"] = session.cookie }
+        if let sapisid = session.sapisid { h["Authorization"] = sapisidHash(sapisid) }
         h.merge(GeminiPayload.modelHeaders(for: request)) { _, value in value }
         return h
     }
 
     // MARK: Payload
 
-    private func requestURL() -> String {
+    private func requestURL(build: String) -> String {
         let reqid = nowUnix() % 1000000
         return "https://gemini.google.com\(accountPrefix())/_/BardChatUi/data/"
             + "assistant.lamda.BardFrontendService/StreamGenerate"
-            + "?bl=\(cfg.geminiBl)&hl=en&_reqid=\(reqid)&rt=c"
+            + "?bl=\(build)&hl=en&_reqid=\(reqid)&rt=c"
     }
 
     // MARK: Response parsing（移植自 gemini.py）
@@ -126,22 +111,33 @@ final class Engine: TextGenerating {
         isCancelled: @escaping () -> Bool = { false },
         onLine: @escaping (String) throws -> Void
     ) throws {
-        let body = GeminiPayload.body(for: request, xsrfToken: cfg.xsrfToken)
-        var req = URLRequest(url: URL(string: requestURL())!)
+        if isCancelled() { return }
+        let session = try sessions.acquire()
+        defer { sessions.release() }
+        if isCancelled() { return }
+        let body = GeminiPayload.body(for: request, xsrfToken: session.xsrfToken)
+        var req = URLRequest(url: URL(string: requestURL(build: session.build))!)
         req.httpMethod = "POST"
         req.httpBody = body.data(using: .utf8)
         req.timeoutInterval = cfg.requestTimeoutSec
-        for (k, v) in buildHeaders(request) { req.setValue(v, forHTTPHeaderField: k) }
+        for (k, v) in buildHeaders(request, session: session) { req.setValue(v, forHTTPHeaderField: k) }
+        try performWithRetries(req) {
+            LineCollector(isCancelled: isCancelled, onLine: onLine,
+                          onResponse: { try self.sessions.receive($0, for: session) })
+        }
+    }
 
+    private func performWithRetries(_ req: URLRequest, collector: () -> LineCollector) throws {
         var lastErr: Error = EngineError.other("no attempt")
         for attempt in 0..<cfg.retryAttempts {
             do {
-                try streamRequest(req, isCancelled: isCancelled, onLine: onLine)
+                try streamRequest(req, collector: collector())
                 return
             } catch {
                 // 4xx（cookie 失效等）重试无意义，直接抛出
                 if case EngineError.http(let c) = error, c < 500 { throw error }
                 if case EngineError.response = error { throw error }
+                if error is GeminiSessionError { throw error }
                 lastErr = error
                 if attempt < cfg.retryAttempts - 1 {
                     log("Retry \(attempt + 1)/\(cfg.retryAttempts): \(error)")
@@ -152,20 +148,8 @@ final class Engine: TextGenerating {
         throw lastErr
     }
 
-    private func streamRequest(_ req: URLRequest, isCancelled: @escaping () -> Bool,
-                               onLine: @escaping (String) throws -> Void) throws {
-        let collector = LineCollector(isCancelled: isCancelled, onLine: onLine)
-        let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = cfg.requestTimeoutSec
-        if let proxy = cfg.proxy, let u = URL(string: proxy), let host = u.host {
-            let port = u.port ?? (u.scheme == "https" ? 443 : 80)
-            config.connectionProxyDictionary = [
-                kCFNetworkProxiesHTTPEnable as String: 1,
-                kCFNetworkProxiesHTTPProxy as String: host,
-                kCFNetworkProxiesHTTPPort as String: port,
-                "HTTPSEnable": 1, "HTTPSProxy": host, "HTTPSPort": port,
-            ]
-        }
+    private func streamRequest(_ req: URLRequest, collector: LineCollector) throws {
+        let config = GeminiNetworking.configuration(proxy: cfg.proxy, timeout: cfg.requestTimeoutSec)
         let session = URLSession(configuration: config, delegate: collector, delegateQueue: nil)
         let task = session.dataTask(with: req)
         collector.task = task
@@ -174,7 +158,7 @@ final class Engine: TextGenerating {
         session.finishTasksAndInvalidate()
         if let e = collector.error {
             // 客户端断开触发的主动取消视为正常结束
-            if isCancelled(), (e as NSError).code == NSURLErrorCancelled { return }
+            if collector.isCancelled(), (e as NSError).code == NSURLErrorCancelled { return }
             throw e
         }
         if let code = collector.statusCode, code >= 400 { throw EngineError.http(code) }
@@ -226,21 +210,30 @@ final class Engine: TextGenerating {
 private final class LineCollector: NSObject, URLSessionDataDelegate {
     let isCancelled: () -> Bool
     let onLine: (String) throws -> Void
+    let onResponse: (HTTPURLResponse) throws -> Void
     let sem = DispatchSemaphore(value: 0)
     var error: Error?
     var statusCode: Int?
     weak var task: URLSessionDataTask?
     private var buffer = Data()
 
-    init(isCancelled: @escaping () -> Bool, onLine: @escaping (String) throws -> Void) {
+    init(isCancelled: @escaping () -> Bool, onLine: @escaping (String) throws -> Void,
+         onResponse: @escaping (HTTPURLResponse) throws -> Void) {
         self.isCancelled = isCancelled
         self.onLine = onLine
+        self.onResponse = onResponse
     }
 
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask,
                     didReceive response: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
         statusCode = (response as? HTTPURLResponse)?.statusCode
-        completionHandler(.allow)
+        do {
+            if let response = response as? HTTPURLResponse { try onResponse(response) }
+            completionHandler(.allow)
+        } catch {
+            self.error = error
+            completionHandler(.cancel)
+        }
     }
 
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {

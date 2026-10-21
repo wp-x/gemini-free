@@ -15,6 +15,7 @@ final class Store {
     var defaultModel = "gemini-4-argon"
     var logRequests = true
     var cookieFile: String? = nil
+    var sessionAutoRefresh = true
     var proxy: String? = nil
     var apiKeys: [String] = []
     var launchAtLogin = false
@@ -40,6 +41,7 @@ final class Store {
         if let v = d["default_model"] as? String { defaultModel = v }
         if let v = d["log_requests"] as? Bool { logRequests = v }
         cookieFile = d["cookie_file"] as? String
+        if let v = d["session_auto_refresh"] as? Bool { sessionAutoRefresh = v }
         proxy = d["proxy"] as? String
         if let v = d["api_keys"] as? [String] { apiKeys = v }
         if let v = d["launch_at_login"] as? Bool { launchAtLogin = v }
@@ -53,6 +55,7 @@ final class Store {
             "auth_user": authUser ?? NSNull(), "xsrf_token": xsrfToken ?? NSNull(),
             "default_model": defaultModel, "log_requests": logRequests,
             "cookie_file": cookieFile ?? NSNull(), "proxy": proxy ?? NSNull(),
+            "session_auto_refresh": sessionAutoRefresh,
             "api_keys": apiKeys, "launch_at_login": launchAtLogin,
         ]
         if let data = try? JSONSerialization.data(withJSONObject: d, options: [.prettyPrinted]) {

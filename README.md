@@ -64,9 +64,9 @@ xattr -dr com.apple.quarantine "Gemini Free.app"
 
 ## 模型
 
-Gemini 4 Argon：`gemini-4-argon`（默认高档）、`gemini-4-argon-low`、`gemini-4-argon-medium` 与 `gemini-4-argon-high` 已通过真实 API 测试。需配置具有 Argon 权限的登录 Cookie，以及同一网页会话的 `xsrf_token`（`SNlM0e`）和 `gemini_bl`（`cfb2h`）。客户端同时支持 OpenAI 与 Anthropic 接口。应用会发送独立的 Argon 模型路由请求头，并核对上游实际返回的模型与思考等级；权限不足、会话失效导致降级时明确报错，不会把 Flash 回复当成 Argon。
+Gemini 4 Argon：`gemini-4-argon`（默认高档）、`gemini-4-argon-low`、`gemini-4-argon-medium` 与 `gemini-4-argon-high` 已通过真实 API 测试。需配置具有 Argon 权限的有效登录 Cookie；自动续期会获取同一网页会话的 `xsrf_token`（`SNlM0e`）和 `gemini_bl`（`cfb2h`），关闭续期时需手工配置这些参数。客户端同时支持 OpenAI 与 Anthropic 接口。应用会发送独立的 Argon 模型路由请求头，并核对上游实际返回的模型与思考等级；权限不足、会话失效导致降级时明确报错，不会把 Flash 回复当成 Argon。
 
-截至 2026-10-20，低、中、高三档均已核对上游响应元数据。过期或混用的会话参数可能使上游返回低档，遇到等级不匹配错误时需同步更新 Cookie、`xsrf_token` 与 `gemini_bl`。
+截至 2026-10-20，低、中、高三档均已核对上游响应元数据。过期或混用的会话参数可能使上游返回低档；1.8 起自动续期并同步 Cookie、`xsrf_token` 与 `gemini_bl`，继续严格核对响应档位。
 
 Argon 思考等级可用别名选择，也可使用 `@think=1`（低）、`@think=4`（中）、`@think=2`（高），例如 `gemini-4-argon@think=4`。这是网页端的新思考等级枚举，与旧模型的深度参数不同。
 
@@ -85,6 +85,16 @@ Argon 思考等级可用别名选择，也可使用 `@think=1`（低）、`@thin
 
 代理填 `http://127.0.0.1:7890` 这类 HTTP 代理即可。
 
+### 登录会话自动续期
+
+1.8 默认启用自动续期：启动时检查，此后每 10 分钟检查一次，请求前也会检查。需要配置含 `__Secure-1PSID` 的有效 Google 登录 Cookie；匿名调用不执行续期。续期会等待正在生成的请求完成，同一时刻只续期一次。
+
+程序通过 Google 的 `RotateCookies` 续期登录，立即将返回的 Cookie 原子写回原文件，再访问对应账号的 Gemini 页面更新 `xsrf_token` 和 `gemini_bl`。生成接口返回的 Cookie 也会保存。续期使用设置中的代理，不依赖 Chrome 或浏览器插件。
+
+Cookie 文件继续支持纯文本和 JSON 输入；首次续期会保存为 JSON，保留原有 Cookie 和 JSON 自定义字段，并设为仅当前用户可读写（`0600`）。自动获取的会话参数保存在这个文件中，优先于配置中的手工值，重启后继续使用。若网页参数获取失败，已轮换的 Cookie 仍会保留，下次继续获取参数。
+
+配置项 `session_auto_refresh` 默认为 `true`；设为 `false` 并重启即可关闭定时与请求前续期。Google 撤销登录、Cookie 已失效或文件无法保存时会明确报错，自动续期不能代替重新登录，也不会静默降低模型或思考档位。
+
 ## 编译
 
 ```bash
@@ -96,6 +106,8 @@ Argon 思考等级可用别名选择，也可使用 `@think=1`（低）、`@thin
 ```bash
 swiftc Sources/Config.swift Sources/Engine.swift Sources/GeminiPayload.swift \
   Sources/GeminiResponse.swift Sources/Models.swift Sources/Util.swift \
+  Sources/GeminiSession.swift Sources/GeminiSessionRefresh.swift \
+  Sources/GeminiSessions.swift Sources/GeminiNetworking.swift \
   Tests/LiveModelTests.swift -framework CryptoKit -o /tmp/gemini-live-model-tests
 /tmp/gemini-live-model-tests gemini-4-argon-low
 /tmp/gemini-live-model-tests gemini-4-argon --stream

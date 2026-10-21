@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 APP="Gemini Free"
 BUNDLE="$APP.app"
 BINDIR="$BUNDLE/Contents/MacOS"
-VERSION="1.7"
+VERSION="1.8"
 
 rm -rf "$BUNDLE"
 mkdir -p "$BINDIR"
