@@ -8,13 +8,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         cfg.load()
-        GeminiSessions.shared.start()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.title = "◐"
         HTTPServer.shared.stateDidChange = { [weak self] _ in
             DispatchQueue.main.async { self?.refresh() }
         }
+        GeminiSessions.shared.statusDidChange = { [weak self] in
+            DispatchQueue.main.async { self?.refresh() }
+        }
         buildMenu()
+        GeminiSessions.shared.start()
         startServer()
     }
 
@@ -31,10 +34,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let status = NSMenuItem(title: running ? "● 运行中  http://localhost:\(cfg.port)" : "○ 已停止", action: nil, keyEquivalent: "")
         status.isEnabled = false
         menu.addItem(status)
+        let session = NSMenuItem(title: GeminiSessions.shared.status, action: nil, keyEquivalent: "")
+        session.isEnabled = false
+        menu.addItem(session)
         menu.addItem(.separator())
 
         menu.addItem(withTitle: "复制 Base URL", action: #selector(copyBaseURL), keyEquivalent: "c").target = self
         menu.addItem(withTitle: running ? "停止服务" : "启动服务", action: #selector(toggleServer), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "立即续期登录会话", action: #selector(refreshSession), keyEquivalent: "").target = self
         menu.addItem(withTitle: "设置…", action: #selector(openSettings), keyEquivalent: ",").target = self
 
         let launch = NSMenuItem(title: "开机自启", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
@@ -88,6 +95,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } catch { alert("开机自启设置失败", "\(error)") }
         cfg.save()
         refresh()
+    }
+
+    @objc private func refreshSession() {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            do { try GeminiSessions.shared.refreshNow() }
+            catch {
+                DispatchQueue.main.async { self?.alert("续期失败", "\(error)") }
+            }
+        }
     }
 
     // MARK: 设置窗口

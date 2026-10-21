@@ -26,6 +26,12 @@ struct GeminiSessionTests {
         precondition(fields["custom"] as? String == "preserved")
         let attributes = try FileManager.default.attributesOfItem(atPath: path)
         precondition((attributes[.posixPermissions] as? NSNumber)?.intValue == 0o600)
+        try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: path)
+        try GeminiSessionFile.save(loaded.rotated(at: SessionTest.date), to: path)
+        let replaced = try GeminiSessionFile.load(path)
+        precondition(!replaced.needsRotation(at: SessionTest.date))
+        let privateAttributes = try FileManager.default.attributesOfItem(atPath: path)
+        precondition((privateAttributes[.posixPermissions] as? NSNumber)?.intValue == 0o600)
         let supplied = loaded.snapshot(settings: SessionTest.settings())
         precondition(supplied.xsrfToken == "configured-xsrf")
         precondition(supplied.build == "configured-build")
@@ -63,6 +69,7 @@ struct GeminiSessionTests {
         let renewal = GeminiSessionRefresh(send: { request, proxy in
             calls += 1
             precondition(proxy == SessionTest.settings().proxy)
+            precondition(request.value(forHTTPHeaderField: "User-Agent") == GeminiNetworking.userAgent)
             if calls == 1 {
                 precondition(request.httpMethod == "POST")
                 precondition(String(data: request.httpBody!, encoding: .utf8) == "[000,\"-0000000000000000000\"]")
@@ -104,8 +111,16 @@ struct GeminiSessionTests {
         precondition(state.load().needsRefresh(at: SessionTest.date, authUser: "0"))
         validPage = true
         _ = try renewal.renew(state.load(), settings: SessionTest.settings())
-        precondition(rotations == 1, "Metadata failure must not trigger another cookie rotation")
-        precondition(!state.load().needsRefresh(at: SessionTest.date, authUser: "0"))
+        precondition(rotations == 1, "Metadata recovery must not rotate an already fresh cookie")
+        state.advance()
+        _ = try renewal.renew(state.load(), settings: SessionTest.settings())
+        precondition(rotations == 2, "Cookie rotation must resume when its own deadline is due")
+        precondition(!state.load().needsRefresh(at: state.now(), authUser: "0"))
+        let metadataOnly = state.load().authenticated(
+            metadata: ["SNlM0e": "later", "cfb2h": "build"],
+            at: state.now().addingTimeInterval(GeminiSessionDocument.refreshInterval), authUser: "0")
+        precondition(metadataOnly.needsRefresh(
+            at: state.now().addingTimeInterval(GeminiSessionDocument.refreshInterval), authUser: "0"))
     }
 
     private static func testExplicitFailures() {
@@ -137,8 +152,7 @@ struct GeminiSessionTests {
                 now: { SessionTest.date }, report: { _ in })
             let sessions = GeminiSessions(settings: { options }, dependencies: dependencies)
             try sessions.refreshIfNeeded()
-            let snapshot = try sessions.acquire()
-            sessions.release()
+            let snapshot = try sessions.snapshot()
             precondition(snapshot.cookie == document.cookie)
         }
     }

@@ -36,14 +36,22 @@ struct GeminiSessionRefresh {
         request.timeoutInterval = GeminiNetworking.sessionTimeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("https://accounts.google.com", forHTTPHeaderField: "Origin")
+        request.setValue(GeminiNetworking.userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue(document.cookie, forHTTPHeaderField: "Cookie")
         request.httpBody = Data("[000,\"-0000000000000000000\"]".utf8)
         let reply = try send(request, settings.proxy)
         let merged = document.merging(reply.response, at: now())
-        let rotated = reply.response.statusCode == 200 ? merged.rotated(at: now()) : merged
+        let hasRotation = GeminiSessionDocument.responseCookies(reply.response).contains {
+            $0.name == "__Secure-1PSIDTS" && !$0.value.isEmpty && ($0.expiresDate ?? .distantFuture) > now()
+        }
+        let succeeded = reply.response.statusCode == 200 && hasRotation
+        let rotated = succeeded ? merged.rotated(at: now()) : merged
         // Save server-side rotations even when status or the later page fetch fails.
         if let path = settings.cookieFile { try save(rotated, path) }
         try checkStatus(reply.response)
+        guard hasRotation else {
+            throw GeminiSessionError.invalid("Google 续期响应未返回有效的 __Secure-1PSIDTS Cookie")
+        }
         return rotated
     }
 
@@ -55,7 +63,7 @@ struct GeminiSessionRefresh {
         var request = URLRequest(url: components.url!)
         request.timeoutInterval = GeminiNetworking.sessionTimeout
         request.setValue(document.cookie, forHTTPHeaderField: "Cookie")
-        request.setValue("Mozilla/5.0", forHTTPHeaderField: "User-Agent")
+        request.setValue(GeminiNetworking.userAgent, forHTTPHeaderField: "User-Agent")
         return request
     }
 

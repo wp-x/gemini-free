@@ -28,7 +28,7 @@ for test in ModelProtocolTests HTTPServerIntegrationTests; do
   run_test "$TEST_DIR/$test"
 done
 
-for test in GeminiSessionTests GeminiSessionConcurrencyTests; do
+for test in GeminiSessionTests GeminiSessionConcurrencyTests GeminiSessionStatusTests; do
   swiftc "${CORE_SOURCES[@]}" Tests/SessionTestSupport.swift "Tests/$test.swift" \
     -framework Network -framework CryptoKit -o "$TEST_DIR/$test"
   run_test "$TEST_DIR/$test"

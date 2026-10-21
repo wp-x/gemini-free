@@ -7,18 +7,17 @@ struct GeminiSessionConcurrencyTests {
 
     static func main() throws {
         try testConcurrentRenewal()
-        try testRenewalWaitsForGeneration()
+        try testRenewalDuringGeneration()
         try testAccountReplacement()
         print("GeminiSessionConcurrencyTests passed")
     }
 
     private static func coordinator(
         state: SessionTestState,
-        load: ((String?) throws -> GeminiSessionDocument)? = nil,
         renew: @escaping (GeminiSessionDocument, GeminiSessionSettings) throws -> GeminiSessionDocument
     ) -> GeminiSessions {
         let dependencies = GeminiSessionDependencies(
-            load: load ?? { _ in state.load() }, save: { document, _ in state.save(document) },
+            load: { _ in state.load() }, save: { document, _ in state.save(document) },
             renew: renew, now: state.now, report: { _ in })
         return GeminiSessions(settings: { SessionTest.settings() }, dependencies: dependencies)
     }
@@ -31,7 +30,7 @@ struct GeminiSessionConcurrencyTests {
             precondition(state.renewed() == 1)
             started.signal()
             precondition(proceed.wait(timeout: .now() + waitSeconds) == .success)
-            let renewed = document.authenticated(
+            let renewed = document.rotated(at: state.now()).authenticated(
                 metadata: ["SNlM0e": "fresh", "cfb2h": "build"], at: state.now(), authUser: "0")
             state.save(renewed)
             return renewed
@@ -42,8 +41,7 @@ struct GeminiSessionConcurrencyTests {
             DispatchQueue.global().async {
                 defer { group.leave() }
                 do {
-                    let snapshot = try sessions.acquire()
-                    defer { sessions.release() }
+                    let snapshot = try sessions.snapshot()
                     precondition(snapshot.xsrfToken == "fresh")
                 } catch { preconditionFailure("Concurrent acquire failed: \(error)") }
             }
@@ -53,50 +51,36 @@ struct GeminiSessionConcurrencyTests {
         precondition(group.wait(timeout: .now() + waitSeconds) == .success)
         precondition(state.count() == 1)
         let afterRestart = coordinator(state: state) { _, _ in preconditionFailure("Recent session renewed again") }
-        _ = try afterRestart.acquire()
-        afterRestart.release()
+        _ = try afterRestart.snapshot()
     }
 
-    private static func testRenewalWaitsForGeneration() throws {
+    private static func testRenewalDuringGeneration() throws {
         let state = SessionTestState(document: SessionTest.document(fresh: true))
-        let dueRead = DispatchSemaphore(value: 0)
-        let completed = DispatchSemaphore(value: 0)
-        let sessions = coordinator(state: state, load: { _ in
-            if state.now() != SessionTest.date { dueRead.signal() }
-            return state.load()
-        }) { document, _ in
-            precondition(document.cookies["__Secure-1PSIDTS"] == "generation-cookie")
+        let sessions = coordinator(state: state) { document, _ in
             _ = state.renewed()
-            let renewed = document.authenticated(
+            let rotation = SessionTest.reply(url: URL(string: "https://accounts.google.com/RotateCookies")!,
+                headers: ["Set-Cookie": "__Secure-1PSIDTS=rotated; Domain=.google.com; Path=/"])
+            let renewed = document.merging(rotation.response, at: state.now()).rotated(at: state.now()).authenticated(
                 metadata: ["SNlM0e": "after", "cfb2h": "build"], at: state.now(), authUser: "0")
             state.save(renewed)
             return renewed
         }
-        let active = try sessions.acquire()
+        let active = try sessions.snapshot()
         state.advance()
-        DispatchQueue.global().async {
-            defer { completed.signal() }
-            do { try sessions.refreshIfNeeded() }
-            catch { preconditionFailure("Background refresh failed: \(error)") }
-        }
-        precondition(dueRead.wait(timeout: .now() + waitSeconds) == .success)
-        precondition(state.count() == 0, "Do not rotate during an active generation")
+        try sessions.refreshIfNeeded()
+        precondition(state.count() == 1, "Long generations must not postpone renewal")
         let response = SessionTest.reply(url: URL(string: "https://gemini.google.com/app")!, headers: [
-            "Set-Cookie": "__Secure-1PSIDTS=generation-cookie; Path=/; Domain=.google.com"])
+            "Set-Cookie": "__Secure-1PSIDTS=stale-generation-cookie; Path=/; Domain=.google.com"])
         try sessions.receive(response.response, for: active)
-        sessions.release()
-        precondition(completed.wait(timeout: .now() + waitSeconds) == .success)
-        precondition(state.count() == 1)
-        let next = try sessions.acquire()
-        sessions.release()
+        precondition(state.load().cookies["__Secure-1PSIDTS"] == "rotated")
+        let next = try sessions.snapshot()
         precondition(next.xsrfToken == "after")
     }
 
     private static func testAccountReplacement() throws {
         let state = SessionTestState(document: SessionTest.document(fresh: true))
         let sessions = coordinator(state: state) { _, _ in preconditionFailure("Unexpected renewal") }
-        let old = try sessions.acquire()
-        defer { sessions.release() }
+        let old = try sessions.snapshot()
         state.save(GeminiSessionDocument(fields: ["cookie": "__Secure-1PSID=different-account"]))
         let response = SessionTest.reply(url: URL(string: "https://gemini.google.com/app")!, headers: [
             "Set-Cookie": "__Secure-1PSIDTS=old-account-cookie; Path=/; Domain=.google.com"])

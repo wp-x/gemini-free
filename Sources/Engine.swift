@@ -68,7 +68,7 @@ final class Engine: TextGenerating {
             "Origin": "https://gemini.google.com",
             "Referer": "https://gemini.google.com\(prefix)/app",
             "X-Same-Domain": "1",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "User-Agent": GeminiNetworking.userAgent,
         ]
         if let u = cfg.authUser, !prefix.isEmpty { h["X-Goog-AuthUser"] = u }
         if !session.cookie.isEmpty { h["Cookie"] = session.cookie }
@@ -112,8 +112,7 @@ final class Engine: TextGenerating {
         onLine: @escaping (String) throws -> Void
     ) throws {
         if isCancelled() { return }
-        let session = try sessions.acquire()
-        defer { sessions.release() }
+        let session = try sessions.snapshot()
         if isCancelled() { return }
         let body = GeminiPayload.body(for: request, xsrfToken: session.xsrfToken)
         var req = URLRequest(url: URL(string: requestURL(build: session.build))!)

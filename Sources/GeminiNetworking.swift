@@ -2,12 +2,14 @@ import Foundation
 
 enum GeminiNetworking {
     static let sessionTimeout: TimeInterval = 30
+    static let userAgent = "Mozilla/5.0"
 
     static func configuration(proxy: String?, timeout: TimeInterval) -> URLSessionConfiguration {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = timeout
         configuration.httpCookieStorage = nil
         configuration.httpShouldSetCookies = false
+        configuration.httpAdditionalHeaders = ["User-Agent": userAgent]
         if let proxy = proxy, let url = URL(string: proxy), let host = url.host {
             let defaultPort = url.scheme == "https" ? 443 : 80
             let port = url.port ?? defaultPort

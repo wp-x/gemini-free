@@ -8,7 +8,7 @@ enum GeminiSessionError: Error, CustomStringConvertible {
         switch self {
         case .invalid(let message): return message
         case .http(let status) where status == 401 || status == 403:
-            return "Google 登录已失效，自动续期被拒绝（HTTP \(status)），请重新登录并导出 Cookie"
+            return "Google 拒绝会话续期（HTTP \(status)），请在浏览器确认登录状态并重新导出有效 Cookie"
         case .http(let status): return "Google 会话续期失败（HTTP \(status)）"
         }
     }
@@ -37,12 +37,13 @@ struct GeminiSessionSnapshot {
     let cookie: String
     let sapisid: String?
     let identity: String?
+    let rotation: String?
     let xsrfToken: String?
     let build: String
 }
 
 struct GeminiSessionDocument {
-    static let refreshInterval: TimeInterval = 600
+    static let refreshInterval: TimeInterval = 180
     private let fields: [String: Any]
 
     init(fields: [String: Any] = [:]) {
@@ -81,7 +82,7 @@ struct GeminiSessionDocument {
     func needsRefresh(at date: Date, authUser: String? = nil) -> Bool {
         guard !cookie.isEmpty else { return false }
         guard fields["session_auth_user"] as? String == (authUser ?? "") else { return true }
-        return isDue("session_refreshed_at", at: date)
+        return isDue("session_refreshed_at", at: date) || isDue("session_rotated_at", at: date)
     }
 
     func needsRotation(at date: Date) -> Bool {
@@ -102,18 +103,14 @@ struct GeminiSessionDocument {
         let sapisid = cookies["SAPISID"] ?? fields["sapisid"] as? String
         return GeminiSessionSnapshot(
             cookieFile: settings.cookieFile, cookie: cookie,
-            sapisid: sapisid?.isEmpty == false ? sapisid : nil, identity: identity,
+            sapisid: sapisid?.isEmpty == false ? sapisid : nil,
+            identity: identity, rotation: cookies["__Secure-1PSIDTS"],
             xsrfToken: fields["xsrf_token"] as? String ?? settings.xsrfToken,
             build: fields["gemini_bl"] as? String ?? settings.build)
     }
 
     func merging(_ response: HTTPURLResponse, at date: Date) -> GeminiSessionDocument {
-        guard let url = response.url else { return self }
-        let headers = response.allHeaderFields.reduce(into: [String: String]()) {
-            $0[String(describing: $1.key)] = String(describing: $1.value)
-        }
-        let received = HTTPCookie.cookies(withResponseHeaderFields: headers, for: url)
-            .filter { Self.accepts($0) }
+        let received = Self.responseCookies(response)
         guard !received.isEmpty else { return self }
         let merged = received.reduce(into: cookies) { result, cookie in
             if let expiry = cookie.expiresDate, expiry <= date {
@@ -138,6 +135,14 @@ struct GeminiSessionDocument {
         try JSONSerialization.data(withJSONObject: fields, options: [.prettyPrinted, .sortedKeys])
     }
 
+    static func responseCookies(_ response: HTTPURLResponse) -> [HTTPCookie] {
+        guard let url = response.url else { return [] }
+        let headers = response.allHeaderFields.reduce(into: [String: String]()) {
+            $0[String(describing: $1.key)] = String(describing: $1.value)
+        }
+        return HTTPCookie.cookies(withResponseHeaderFields: headers, for: url).filter(accepts)
+    }
+
     private func updating(_ values: [String: Any]) -> GeminiSessionDocument {
         GeminiSessionDocument(fields: fields.merging(values) { _, updated in updated })
     }
@@ -149,6 +154,7 @@ struct GeminiSessionDocument {
 }
 
 enum GeminiSessionFile {
+    private static let privatePermissions = 0o600
     static func load(_ path: String?) throws -> GeminiSessionDocument {
         guard let path = path else { return GeminiSessionDocument() }
         do { return try GeminiSessionDocument(data: Data(contentsOf: URL(fileURLWithPath: path))) }
@@ -156,10 +162,24 @@ enum GeminiSessionFile {
     }
 
     static func save(_ document: GeminiSessionDocument, to path: String) throws {
+        let manager = FileManager.default
+        let destination = URL(fileURLWithPath: path)
+        let temporary = destination.deletingLastPathComponent().appendingPathComponent(".session-\(UUID().uuidString)")
+        defer { try? manager.removeItem(at: temporary) }
         do {
-            let url = URL(fileURLWithPath: path)
-            try document.data().write(to: url, options: [.atomic])
-            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: path)
+            guard manager.createFile(atPath: temporary.path, contents: nil,
+                                     attributes: [.posixPermissions: privatePermissions]) else {
+                throw GeminiSessionError.invalid("无法创建私有 Cookie 临时文件")
+            }
+            let handle = try FileHandle(forWritingTo: temporary)
+            defer { try? handle.close() }
+            try handle.write(contentsOf: document.data())
+            try handle.synchronize()
+            if manager.fileExists(atPath: path) {
+                _ = try manager.replaceItemAt(destination, withItemAt: temporary, options: [.usingNewMetadataOnly])
+            } else {
+                try manager.moveItem(at: temporary, to: destination)
+            }
         } catch {
             throw GeminiSessionError.invalid("无法保存 Cookie 文件：\(error)")
         }
