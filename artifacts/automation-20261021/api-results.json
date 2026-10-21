@@ -1,0 +1,119 @@
+[
+  {
+    "name": "management requires private token",
+    "status": "passed",
+    "duration_ms": 34
+  },
+  {
+    "name": "management state is authenticated and noncacheable",
+    "status": "passed",
+    "duration_ms": 3
+  },
+  {
+    "name": "health endpoint",
+    "status": "passed",
+    "duration_ms": 1
+  },
+  {
+    "name": "model list",
+    "status": "passed",
+    "duration_ms": 1,
+    "evidence": {
+      "model_count": 14
+    }
+  },
+  {
+    "name": "unknown endpoint",
+    "status": "passed",
+    "duration_ms": 1
+  },
+  {
+    "name": "wrong HTTP method",
+    "status": "passed",
+    "duration_ms": 0
+  },
+  {
+    "name": "invalid JSON is rejected",
+    "status": "passed",
+    "duration_ms": 3
+  },
+  {
+    "name": "missing messages is rejected",
+    "status": "passed",
+    "duration_ms": 1
+  },
+  {
+    "name": "empty messages is rejected",
+    "status": "passed",
+    "duration_ms": 1
+  },
+  {
+    "name": "unknown model is rejected",
+    "status": "passed",
+    "duration_ms": 1
+  },
+  {
+    "name": "trailing JSON is rejected",
+    "status": "passed",
+    "duration_ms": 1
+  },
+  {
+    "name": "unsupported image is rejected",
+    "status": "passed",
+    "duration_ms": 0
+  },
+  {
+    "name": "local token estimation is marked",
+    "status": "passed",
+    "duration_ms": 1,
+    "evidence": {
+      "estimated": true,
+      "estimation_method": "utf8_bytes_div_4",
+      "input_tokens": 15
+    }
+  },
+  {
+    "name": "account-only model is not silently downgraded",
+    "status": "passed",
+    "duration_ms": 40004,
+    "evidence": {
+      "error": "read upstream stream: context deadline exceeded"
+    }
+  },
+  {
+    "name": "real anonymous OpenAI answer and route",
+    "status": "passed",
+    "duration_ms": 4201,
+    "evidence": {
+      "answer": "13",
+      "actual_mode": "6"
+    }
+  },
+  {
+    "name": "real anonymous OpenAI stream",
+    "status": "passed",
+    "duration_ms": 2826,
+    "evidence": {
+      "answer": "13",
+      "event_count": 4
+    }
+  },
+  {
+    "name": "real anonymous Anthropic answer",
+    "status": "passed",
+    "duration_ms": 10421,
+    "evidence": {
+      "answer": "13",
+      "stop_reason": "end_turn"
+    }
+  },
+  {
+    "name": "real anonymous Anthropic stream",
+    "status": "passed",
+    "duration_ms": 3319,
+    "evidence": {
+      "answer": "13",
+      "event_count": 6
+    }
+  }
+]

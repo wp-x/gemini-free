@@ -4,9 +4,50 @@
 
 <h1 align="center">Gemini Free</h1>
 
-macOS 菜单栏应用，把 Gemini 网页端转成本地 OpenAI / Anthropic Messages 兼容 API。纯 Swift，内存占用约 14MB。
+Go + MyGo 桌面客户端，支持 macOS 和 Windows，将 Gemini 网页端转换为本地 OpenAI / Anthropic Messages 兼容 API。提供完整 GUI、菜单栏／托盘右键菜单、匿名与登录会话模式。
 
 基于 [gemini-web2api](https://github.com/Sophomoresty/gemini-web2api) 的协议逆向逻辑重写。
+
+## Go 桌面版
+
+构建产物位于 `dist/`：
+
+- macOS：`dist/darwin-universal/Gemini Free.app`，兼容 Apple Silicon 和 Intel。
+- Windows：`dist/windows-amd64/Gemini Free.exe` 及同目录安装程序。
+
+[图文使用教程](docs/tutorial/index.html) · [自动化测试报告](artifacts/automation-20261021/REPORT.md) · [2026-10-21 代码审查](artifacts/review-20261021/REPORT.md)
+
+打开客户端后，首页可启停服务、切换请求模式及复制兼容接口地址。问答页会显示真实上游路由和思考等级；设置中管理登录会话、代理、监听地址和 API 访问密钥。关闭窗口后应用继续在托盘运行，从托盘选择退出才停止服务。
+
+匿名模式不读取账号 Cookie，不携带登录 token。2026-10-21，Go 版本已完成真实问答和增量输出验证，`gemini-flash-lite` 请求与实际路由均为 `6`。高级模型必须显式选择登录会话；权限不足或上游返回低档时明确报错。
+
+登录会话支持 Cookie 文本或 JSON 导入，也可从旧版配置导入。Cookie、会话参数和 API 密钥以 AES-GCM 加密保存，主密钥由 macOS 钥匙串／Windows 系统凭据库管理。Go 版配置独立保存，不覆盖 Swift 版 Cookie 文件；导入不会自动切换模式。账号导入成功不代表高级模型权限已验证。
+
+新增会话时仅 Cookie 为必填项，也可选择 Cookie 导出 JSON 或会话文件。名称留空时自动命名；XSRF token 和网页构建标识由会话刷新自动获取，高级参数默认折叠。关闭自动刷新时，需主动刷新会话以同步参数。
+
+Go 版默认仅本机访问。首页“局域网设置”或设置中的“通用连接”提供局域网访问开关；停止服务后更改并保存，再启动服务即可生效。首页及设置显示各网卡的 OpenAI / Anthropic 地址并支持复制。局域网只开放兼容 API，管理界面仍仅本机可用；访问认证状态及密钥入口在同一设置页。
+
+开发启动与检查：
+
+```bash
+go run ./cmd/gemini-free
+go test -race -timeout 60s ./internal/...
+go vet ./...
+```
+
+需要代理时可使用 `go run ./cmd/gemini-free -proxy http://127.0.0.1:7890`。`-config` 可指定独立配置路径，`-no-start` 使客户端启动时不自动开启兼容 API。
+
+双端打包：
+
+```bash
+bash scripts/build-desktop.sh
+```
+
+当前使用 Go 1.27.1 和 MyGo v0.6.0。macOS 产物为本地 ad-hoc 签名，尚未进行 Apple 公证；Windows 产物尚未配置发行者签名。UI 证据及组件规范见 [设计分析](artifacts/autotyper-ui-20261021/COMPONENTS.md) 和 [设计规范](DESIGN.md)。
+
+以下保留 Swift 旧版的使用和构建说明。旧版默认模型、监听地址及配置位置与 Go 版分别维护。
+
+## Swift 旧版
 
 ## 下载
 
@@ -75,6 +116,14 @@ Argon 思考等级可用别名选择，也可使用 `@think=1`（低）、`@thin
 要 Gemini Advanced 付费 cookie：`gemini-3.1-pro` `gemini-3.1-pro-enhanced`（没 cookie 也能调，静默回退 Flash）
 
 旧模型保留 `@think=N` 兼容参数，沿用原有编码；Argon 的思考等级使用独立字段。
+
+### 匿名模式实测
+
+2026-10-21，通过不读取本机账号配置、不携带 Cookie、Authorization 或登录 token 的独立进程，已验证普通问答、中文计算题和流式输出可用。使用本机代理完成测试，直接连接在建立连接时超时。
+
+`gemini-flash-lite` 请求的路由编号为 `6`，本次上游也返回 `6`。`gemini-3.8-flash` 请求的路由编号为 `1`，本次上游实际返回 `6`；因此上述模型名称属于本地别名，不能仅凭请求名称确认实际模型或版本。匿名测试不能作为高级模型权限证明。
+
+独立测试入口为 `Tests/AnonymousLiveTests.swift`，详细结果见 [匿名测试记录](artifacts/anonymous-20261021/RESULTS.md)。该测试不会读取或更新已有账号 Cookie。
 
 ## 设置
 

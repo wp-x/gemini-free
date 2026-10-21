@@ -1,0 +1,140 @@
+[
+  {
+    "name": "首页显示真实停止状态",
+    "status": "passed",
+    "duration_ms": 26
+  },
+  {
+    "name": "主界面启动服务",
+    "status": "passed",
+    "duration_ms": 3
+  },
+  {
+    "name": "运行时锁定端口与局域网范围",
+    "status": "harness_error",
+    "error": "Values have same structure but are not reference-equal:\n\n{\n  lan: true,\n  port: true\n}\n"
+  },
+  {
+    "name": "切换设置分类保留未保存草稿",
+    "status": "passed",
+    "duration_ms": 10
+  },
+  {
+    "name": "Escape关闭设置并恢复焦点",
+    "status": "passed",
+    "duration_ms": 9
+  },
+  {
+    "name": "保存默认模型",
+    "status": "passed",
+    "duration_ms": 9
+  },
+  {
+    "name": "重载后保留默认模型",
+    "status": "passed",
+    "duration_ms": 6
+  },
+  {
+    "name": "空问题禁止发送",
+    "status": "passed",
+    "duration_ms": 5
+  },
+  {
+    "name": "GUI真实匿名问答与实际路由",
+    "status": "passed",
+    "duration_ms": 10
+  },
+  {
+    "name": "停止生成恢复发送按钮",
+    "status": "passed",
+    "duration_ms": 13
+  },
+  {
+    "name": "匿名模式下高级模型提示登录要求",
+    "status": "passed",
+    "duration_ms": 5
+  },
+  {
+    "name": "运行时锁定端口与局域网范围（逐字段断言）",
+    "status": "passed",
+    "duration_ms": 7
+  },
+  {
+    "name": "设置页停止服务并解锁访问范围",
+    "status": "passed",
+    "duration_ms": 8
+  },
+  {
+    "name": "无效Cookie显示错误且不添加会话",
+    "status": "passed",
+    "duration_ms": 8
+  },
+  {
+    "name": "替换与移除密钥冲突时显示错误",
+    "status": "passed",
+    "duration_ms": 3
+  },
+  {
+    "name": "空密钥输入保留现有配置",
+    "status": "passed",
+    "duration_ms": 8
+  },
+  {
+    "name": "没有会话时不能切换账号模式",
+    "status": "passed",
+    "duration_ms": 8
+  },
+  {
+    "name": "复制OpenAI地址",
+    "status": "passed",
+    "duration_ms": 2
+  },
+  {
+    "name": "日志搜索空结果",
+    "status": "passed",
+    "duration_ms": 5
+  },
+  {
+    "name": "日志搜索匹配结果",
+    "status": "passed",
+    "duration_ms": 4
+  },
+  {
+    "name": "导出日志为可解析JSON",
+    "status": "passed",
+    "duration_ms": 0
+  },
+  {
+    "name": "macOS原生退出后进程结束",
+    "status": "passed"
+  },
+  {
+    "name": "重启程序保留独立配置",
+    "status": "passed",
+    "duration_ms": 19
+  },
+  {
+    "name": "修复后新版GUI真实问答",
+    "status": "passed",
+    "duration_ms": 14
+  },
+  {
+    "name": "375px模型页无整页横向溢出",
+    "status": "passed",
+    "duration_ms": 8
+  },
+  {
+    "name": "375px设置对话框和圆角",
+    "status": "passed",
+    "duration_ms": 9
+  },
+  {
+    "name": "native macOS question with Chinese prompt returns 42",
+    "status": "passed",
+    "evidence": {
+      "answer": "42",
+      "actual_mode": 6,
+      "thinking_level": 1
+    }
+  }
+]

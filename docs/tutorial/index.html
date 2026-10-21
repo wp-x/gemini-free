@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gemini Free · 图文使用教程</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <aside class="contents">
+    <a class="brand" href="#intro">Gemini Free</a>
+    <p class="edition">Go 桌面版 · 使用教程</p>
+    <nav aria-label="教程目录">
+      <a href="#start">01 启动与匿名模式</a>
+      <a href="#question">02 发送第一条问题</a>
+      <a href="#models">03 选择默认模型</a>
+      <a href="#clients">04 连接其他客户端</a>
+      <a href="#lan">05 局域网访问</a>
+      <a href="#accounts">06 添加登录会话</a>
+      <a href="#keys">07 配置访问密钥</a>
+      <a href="#logs">08 日志、排错与停止</a>
+    </nav>
+    <a class="report-link" href="../../artifacts/automation-20261021/REPORT.md">查看完整测试报告</a>
+  </aside>
+  <main>
+    <header id="intro">
+      <p class="eyebrow">2026-10-21 · macOS 实际操作截图</p>
+      <h1>Gemini Free 使用教程</h1>
+      <p class="lead">从启动服务，到匿名问答、连接客户端与管理登录会话。</p>
+      <div class="notice">
+        <strong>先了解本次验证结果</strong>
+        <p>匿名问答真实返回了 42，Windows 启动和跨设备局域网请求通过。
+          最终接口检查为 18 / 19 项通过；OpenAI 流式请求及其单独重测均发生上游超时。
+          登录账号的高级模型能力尚未验证，不能将本教程理解为全部功能验收通过。</p>
+      </div>
+      <p class="caption">截图使用独立测试端口 <code>18181</code>，程序默认端口为 <code>8081</code>。
+        地址、代理、网卡和超时以你自己的设置为准。Windows 使用相同的页面入口，
+        本教程截图来自 macOS；Windows 本轮仅完成原生启动检查。</p>
+    </header>
+
+    <section id="start">
+      <p class="step">01</p><h2>启动服务，使用匿名模式</h2>
+      <ol>
+        <li>打开 Gemini Free，在左侧进入<strong>首页</strong>。</li>
+        <li>在“当前模式”选择<strong>匿名模式</strong>，点击<strong>应用</strong>。匿名模式不需要账号 Cookie。</li>
+        <li>点击右上角<strong>启动服务</strong>。运行状态应变为“运行中”，按钮变为“停止服务”。</li>
+      </ol>
+      <figure><a href="../../artifacts/automation-20261021/00-home-stopped.jpg"><img src="../../artifacts/automation-20261021/00-home-stopped.jpg" alt="首页停止状态，右上角显示启动服务按钮" width="1080" height="800"></a>
+        <figcaption>启动入口：右上角“启动服务”。下方可以选择请求模式及复制接口地址。</figcaption></figure>
+      <p>如果启动失败，先查看“运行日志”。端口被其他程序占用时，停止当前服务后，在设置里更换端口并保存，再启动。</p>
+    </section>
+
+    <section id="question">
+      <p class="step">02</p><h2>发送第一条问题</h2>
+      <ol>
+        <li>进入左侧<strong>问答</strong>，请求模型选择 <code>gemini-flash-lite</code>。</li>
+        <li>输入问题，例如“19+23等于多少？只输出数字。”，点击输入框下方的<strong>发送图标</strong>。</li>
+        <li>查看“实际响应”。生成期间，发送位置会切换为<strong>停止生成</strong>按钮，可主动取消。</li>
+      </ol>
+      <figure><a href="../../artifacts/automation-20261021/03-question-native.jpg"><img src="../../artifacts/automation-20261021/03-question-native.jpg" alt="macOS 原生程序实际问答返回42，实际mode为6，思考等级为1" width="1080" height="800" loading="lazy"></a>
+        <figcaption>真实桌面窗口：返回 42，实际 mode = 6，思考等级 = 1。</figcaption></figure>
+      <p>请求模型名称是本地配置名。“实际 mode”和“思考等级”来自上游响应，
+        需要一起查看；列表中有某个模型，不等于匿名模式具备该模型的权限。</p>
+    </section>
+
+    <section id="models">
+      <p class="step">03</p><h2>选择默认模型</h2>
+      <p>进入<strong>模型</strong>，使用页面上方的默认模型下拉框选择模型，再点击<strong>保存</strong>。
+        保存后重启仍会保留。问答页可单独选择本次请求使用的模型。</p>
+      <figure><a href="../../artifacts/automation-20261021/02-models.jpg"><img src="../../artifacts/automation-20261021/02-models.jpg" alt="模型页的默认模型选择、保存按钮和模型权限列表" width="1080" height="800" loading="lazy"></a>
+        <figcaption>匿名模式优先用已实测的 gemini-flash-lite。需要账号的高级模型会明确提示登录要求。</figcaption></figure>
+    </section>
+
+    <section id="clients">
+      <p class="step">04</p><h2>连接其他客户端</h2>
+      <p>先启动服务，再在首页“API 地址”点击对应行右侧的<strong>复制图标</strong>。
+        OpenAI 和 Anthropic 使用不同的接口路径。</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>客户端设置</th><th>默认端口示例</th></tr></thead>
+        <tbody>
+          <tr><td>OpenAI 兼容 Base URL</td><td><code>http://127.0.0.1:8081/v1</code></td></tr>
+          <tr><td>Anthropic API 根地址</td><td><code>http://127.0.0.1:8081</code></td></tr>
+          <tr><td>Anthropic 完整 Messages 端点</td><td><code>http://127.0.0.1:8081/v1/messages</code></td></tr>
+          <tr><td>匿名测试模型</td><td><code>gemini-flash-lite</code></td></tr>
+        </tbody>
+      </table></div>
+      <p>首页复制的 Anthropic 地址是<strong>完整 Messages 端点</strong>。客户端若要求 Base URL，
+        应按该客户端的字段定义填写根地址，避免自动拼接成重复路径。
+        启用访问密钥后，在客户端填写同一个密钥；未设置密钥时服务不校验密钥。</p>
+      <figure><a href="../../artifacts/automation-20261021/01-home-running.jpg"><img src="../../artifacts/automation-20261021/01-home-running.jpg" alt="服务运行中的首页，显示OpenAI与Anthropic接口地址及复制按钮" width="1080" height="800" loading="lazy"></a>
+        <figcaption>截图端口为 18181。请复制你自己界面上的地址。</figcaption></figure>
+      <details><summary>用终端测试 OpenAI 接口</summary>
+        <pre><code>curl http://127.0.0.1:8081/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"gemini-flash-lite","messages":[{"role":"user","content":"你好"}]}'</code></pre>
+        <p>若已设置密钥，再加请求头 <code>Authorization: Bearer 你的密钥</code>。</p>
+      </details>
+    </section>
+
+    <section id="lan">
+      <p class="step">05</p><h2>允许局域网内其他设备访问</h2>
+      <ol>
+        <li>点击<strong>停止服务</strong>。运行中不能修改访问范围和端口。</li>
+        <li>从首页<strong>局域网设置</strong>，或<strong>设置 → 通用连接</strong>，开启<strong>局域网访问</strong>。</li>
+        <li>点击<strong>保存设置</strong>，再点击<strong>启动服务</strong>。</li>
+        <li>展开<strong>访问地址</strong>，找到与另一台设备处于同一网络的网卡，复制该网卡的地址。</li>
+      </ol>
+      <figure><a href="../../artifacts/automation-20261021/04-lan-settings.jpg"><img src="../../artifacts/automation-20261021/04-lan-settings.jpg" alt="通用连接中局域网开关已开启，服务运行中" width="1080" height="800" loading="lazy"></a>
+        <figcaption>局域网开关和服务状态位于同一设置页。更改访问范围时需要先停服。</figcaption></figure>
+      <figure><a href="../../artifacts/automation-20261021/04-lan-addresses.jpg"><img src="../../artifacts/automation-20261021/04-lan-addresses.jpg" alt="展开访问地址后显示网卡en0的局域网接口与复制按钮" width="1080" height="800" loading="lazy"></a>
+        <figcaption>本次实测使用 en0。网卡多时向下滚动查看；不要把其他电脑的 127.0.0.1 当作这台电脑。</figcaption></figure>
+      <p>另一台设备使用本机在局域网内的 IP，端口保持一致。虚拟机桥接网卡和 Wi-Fi 网卡的地址可能不同。
+        本轮已从 Windows 11 访问 Mac 的 Wi-Fi 地址，获得健康检查、模型列表及真实回答 42。</p>
+      <p>开放局域网前建议在“访问密钥”设置认证。局域网仅开放兼容 API，管理界面仍只在本机访问。
+        连不上时检查两端网络、所选网卡、服务状态及系统防火墙。</p>
+    </section>
+
+    <section id="accounts">
+      <p class="step">06</p><h2>添加登录会话</h2>
+      <ol>
+        <li>进入<strong>设置 → 登录会话</strong>，点击<strong>新增会话</strong>。</li>
+        <li>在<strong>Cookie 或会话 JSON</strong>粘贴自己的有效登录会话，或点击<strong>导入文件</strong>选择导出的文本 / JSON。</li>
+        <li>名称可留空自动命名。点击<strong>添加会话</strong>；“高级参数”用于按需提供已有的会话参数。</li>
+        <li>添加后刷新会话，同步 Cookie、XSRF token 和网页构建参数。自动刷新关闭时需要手动刷新。</li>
+        <li>返回首页，选择<strong>登录会话</strong>及对应账号，点击<strong>应用</strong>，然后到问答页验证目标模型。</li>
+      </ol>
+      <figure><a href="../../artifacts/automation-20261021/05-account-form.jpg"><img src="../../artifacts/automation-20261021/05-account-form.jpg" alt="空白登录会话表单，包含Cookie、导入文件、可选名称、高级参数与添加会话" width="1080" height="800" loading="lazy"></a>
+        <figcaption>截图未填入真实 Cookie。眼睛图标用于显示或隐藏输入内容。</figcaption></figure>
+      <div class="notice"><strong>添加成功不代表高级模型可用</strong>
+        <p>本轮没有验证有效账号的高级权限。Cookie 失效、刷新被拒绝或实际思考档位不符时，
+          应按真实错误处理；程序不会把低档响应当作高级模型成功。</p></div>
+    </section>
+
+    <section id="keys">
+      <p class="step">07</p><h2>配置 API 访问密钥</h2>
+      <p>进入<strong>设置 → 访问密钥</strong>，输入需要使用的密钥并保存，然后在调用客户端中填写相同密钥。
+        留空保存会保留原有配置；需要移除时使用页面提供的移除选项。
+        同时要求替换和移除会报冲突，应只选择一种操作。</p>
+      <figure><a href="../../artifacts/automation-20261021/06-access-keys.jpg"><img src="../../artifacts/automation-20261021/06-access-keys.jpg" alt="访问密钥设置页，显示替换输入与移除选项" width="1080" height="800" loading="lazy"></a>
+        <figcaption>这里配置的是调用本地 API 的密钥，与 Google 登录 Cookie 分开管理。</figcaption></figure>
+    </section>
+
+    <section id="logs">
+      <p class="step">08</p><h2>排查错误，停止服务</h2>
+      <p>进入<strong>运行日志</strong>，用搜索框查关键字，或在级别下拉框选择 <strong>Error</strong>。
+        右上角下载图标可以<strong>导出日志</strong>。“跟随最新”控制是否跟随新记录。</p>
+      <figure><a href="../../artifacts/automation-20261021/07-logs-errors.jpg"><img src="../../artifacts/automation-20261021/07-logs-errors.jpg" alt="真实Error日志，包含匿名高级模型登录要求及上游超时" width="1080" height="800" loading="lazy"></a>
+        <figcaption>本次真实错误示例：需要登录会话，以及等待上游超时。</figcaption></figure>
+      <div class="table-scroll"><table>
+        <thead><tr><th>现象</th><th>处理方式</th></tr></thead>
+        <tbody>
+          <tr><td>此模型需要登录会话</td><td>改用已验证的匿名模型，或配置具备权限的登录会话并应用。</td></tr>
+          <tr><td>context deadline exceeded</td><td>检查网络、出站代理与请求超时。记录失败后可手动再试；重试不保证成功。</td></tr>
+          <tr><td>401 / 会话刷新失败</td><td>在浏览器确认账号登录有效，再更新会话并刷新。</td></tr>
+          <tr><td>实际模型 / 思考档位不符</td><td>检查账号权限和会话参数，不应将此错误当作高级模型成功。</td></tr>
+        </tbody>
+      </table></div>
+      <p>本轮使用 40 秒验证超时，默认配置为 180 秒；没有通过延长验证超时来掩盖失败。
+        协议直连也发生超时，具体是网络、代理还是上游服务所致尚未确定。</p>
+      <p>暂停对外提供 API 时，点击右上角<strong>停止服务</strong>。需要结束程序时使用应用退出命令；
+        macOS 本轮已验证 <kbd>⌘</kbd> + <kbd>Q</kbd> 能结束进程。关闭窗口隐藏与托盘右键交互本轮未完整验证。</p>
+    </section>
+    <footer>截图来自实际程序与真实请求。完整结果及未覆盖项见
+      <a href="../../artifacts/automation-20261021/REPORT.md">自动化测试报告</a>。</footer>
+  </main>
+</body>
+</html>

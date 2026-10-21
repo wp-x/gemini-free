@@ -1,0 +1,31 @@
+.model-table { min-width: 620px; table-layout: fixed; }
+.model-table th:first-child { width: 37%; }
+.model-table th:nth-child(2) { width: 14%; }
+.model-table th:nth-child(3) { width: 19%; }
+.model-table td { padding-top: 16px; padding-bottom: 16px; }
+.model-id { font-size: 12px; }
+.verification { color: var(--secondary); font-size: 11px; }
+.prompt-field { margin-top: 20px; }
+.send-button, .cancel-button { border-radius: 50%; background: #e8e8e8; color: var(--ink); }
+.send-button .icon { width: 21px; height: 21px; stroke-width: 2; }
+.send-button:disabled { background: #f0f0f0; opacity: .55; }
+.send-button[aria-busy="true"] { display: none; }
+.result-meta { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 20px; margin: 0 0 20px; }
+dt { color: var(--secondary); font-size: 11px; }
+dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+.result-meta dd { font-size: 12px; font-variant-numeric: tabular-nums; }
+.result-empty { background: #f8f8f8; border-radius: var(--radius); min-height: 220px; }
+.probe-output { min-height: 220px; margin: 0; padding: 20px; background: #fbfbfb; border: 1px solid var(--divider); border-radius: var(--radius); font: inherit; font-size: 13px; line-height: 1.85; white-space: pre-wrap; overflow-wrap: anywhere; }
+.log-toolbar { display: flex; align-items: center; gap: 12px; }
+.search-field { display: flex; align-items: center; position: relative; flex: 1; min-width: 100px; }
+.search-field > .icon { position: absolute; left: 12px; color: var(--secondary); width: 16px; height: 16px; }
+.search-field input { padding-left: 36px !important; }
+.log-toolbar select { width: 120px; flex: 0 0 120px; }
+.log-count { margin-top: 20px; margin-bottom: 6px; }
+.log-region { max-height: calc(100dvh - 240px); }
+.log-table { min-width: 560px; }
+.log-table th:first-child { width: 116px; }
+.log-table th:nth-child(2) { width: 66px; }
+.log-table th { position: sticky; top: 0; background: #fff; z-index: 1; }
+.log-table td { padding-top: 11px; padding-bottom: 11px; }
+.log-level { font-size: 10px; font-weight: 600; }

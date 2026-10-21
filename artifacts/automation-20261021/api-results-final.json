@@ -1,0 +1,124 @@
+[
+  {
+    "name": "management requires private token",
+    "status": "passed",
+    "duration_ms": 2
+  },
+  {
+    "name": "management state is authenticated and noncacheable",
+    "status": "passed",
+    "duration_ms": 0
+  },
+  {
+    "name": "health endpoint",
+    "status": "passed",
+    "duration_ms": 1
+  },
+  {
+    "name": "model list",
+    "status": "passed",
+    "duration_ms": 0,
+    "evidence": {
+      "model_count": 14
+    }
+  },
+  {
+    "name": "unknown endpoint",
+    "status": "passed",
+    "duration_ms": 0
+  },
+  {
+    "name": "wrong HTTP method",
+    "status": "passed",
+    "duration_ms": 1
+  },
+  {
+    "name": "invalid JSON is rejected",
+    "status": "passed",
+    "duration_ms": 3
+  },
+  {
+    "name": "missing messages is rejected",
+    "status": "passed",
+    "duration_ms": 1
+  },
+  {
+    "name": "empty messages is rejected",
+    "status": "passed",
+    "duration_ms": 0
+  },
+  {
+    "name": "unknown model is rejected",
+    "status": "passed",
+    "duration_ms": 1
+  },
+  {
+    "name": "trailing JSON is rejected",
+    "status": "passed",
+    "duration_ms": 1
+  },
+  {
+    "name": "unsupported image is rejected",
+    "status": "passed",
+    "duration_ms": 0
+  },
+  {
+    "name": "local token estimation is marked",
+    "status": "passed",
+    "duration_ms": 0,
+    "evidence": {
+      "estimated": true,
+      "estimation_method": "utf8_bytes_div_4",
+      "input_tokens": 15
+    }
+  },
+  {
+    "name": "/v1/chat/completions reports account requirement",
+    "status": "passed",
+    "duration_ms": 1,
+    "evidence": {
+      "error": "此模型需要登录会话，当前为匿名模式"
+    }
+  },
+  {
+    "name": "/v1/messages reports account requirement",
+    "status": "passed",
+    "duration_ms": 0,
+    "evidence": {
+      "error": "此模型需要登录会话，当前为匿名模式"
+    }
+  },
+  {
+    "name": "real anonymous OpenAI answer and route",
+    "status": "passed",
+    "duration_ms": 5563,
+    "evidence": {
+      "answer": "13",
+      "actual_mode": 6
+    }
+  },
+  {
+    "name": "real anonymous OpenAI stream",
+    "status": "failed",
+    "duration_ms": 40010,
+    "error": "Expected values to be strictly equal:\n\n'' !== '13'\n"
+  },
+  {
+    "name": "real anonymous Anthropic answer",
+    "status": "passed",
+    "duration_ms": 15164,
+    "evidence": {
+      "answer": "13",
+      "stop_reason": "end_turn"
+    }
+  },
+  {
+    "name": "real anonymous Anthropic stream",
+    "status": "passed",
+    "duration_ms": 39215,
+    "evidence": {
+      "answer": "13",
+      "event_count": 6
+    }
+  }
+]

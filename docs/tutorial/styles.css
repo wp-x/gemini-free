@@ -1,0 +1,90 @@
+:root {
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+  color: #232825;
+  background: #fff;
+  font-size: 16px;
+  line-height: 1.8;
+  letter-spacing: 0;
+  --green: #23664b;
+  --line: #dfe5e1;
+  --muted: #626d66;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+body { margin: 0; }
+a { color: var(--green); text-underline-offset: 4px; }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--green); outline-offset: 4px; }
+.contents {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 252px;
+  padding: 34px 24px;
+  background: #f4f6f5;
+  border-right: 1px solid var(--line);
+  overflow: auto;
+}
+.brand { color: #232825; font-size: 22px; font-weight: 700; text-decoration: none; }
+.edition { margin: 2px 0 32px; color: var(--muted); font-size: 13px; }
+nav { display: grid; gap: 4px; }
+nav a { padding: 8px 0; font-size: 14px; text-decoration: none; }
+nav a:hover { text-decoration: underline; }
+.report-link { display: block; margin-top: 32px; font-size: 13px; }
+main { max-width: 1240px; margin: 0 auto 0 252px; padding: 48px 52px 32px; min-width: 0; }
+header { padding-bottom: 30px; border-bottom: 1px solid var(--line); }
+.eyebrow { margin: 0; color: var(--muted); font-size: 13px; }
+h1 { margin: 10px 0; font-size: 34px; line-height: 1.3; }
+.lead { margin: 0 0 26px; font-size: 18px; }
+.notice { border-left: 3px solid #bd641f; padding: 12px 18px; background: #fcf7f1; }
+.notice p { margin: 5px 0 0; font-size: 14px; }
+.caption { margin-top: 20px; font-size: 13px; color: var(--muted); }
+section { padding: 34px 0 20px; border-bottom: 1px solid var(--line); }
+.step { margin: 0 0 3px; color: var(--green); font-size: 13px; font-weight: 700; }
+h2 { margin: 0 0 20px; font-size: 25px; line-height: 1.4; }
+p { overflow-wrap: anywhere; }
+ol { padding-left: 24px; }
+li { padding-left: 4px; margin: 8px 0; }
+figure { margin: 24px 0; }
+figure a { display: block; }
+img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 6px; }
+figcaption { margin-top: 9px; font-size: 13px; line-height: 1.7; color: var(--muted); }
+.table-scroll { width: 100%; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; text-align: left; }
+th, td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { background: #f4f6f5; font-weight: 600; }
+td:first-child { width: 36%; }
+code, pre { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 13px; }
+code { background: #f0f3f1; border-radius: 3px; padding: 2px 4px; overflow-wrap: anywhere; }
+pre { padding: 18px; overflow-x: auto; background: #f0f3f1; line-height: 1.8; border-radius: 6px; }
+pre code { padding: 0; overflow-wrap: normal; }
+details { padding: 16px 0; }
+summary { cursor: pointer; color: var(--green); font-weight: 600; }
+kbd { border: 1px solid #d2d8d4; border-radius: 3px; padding: 1px 5px; font-size: 13px; }
+footer { padding-top: 28px; color: var(--muted); font-size: 13px; }
+@media (min-width: 1500px) { main { margin-right: auto; max-width: 1130px; } }
+@media (max-width: 960px) {
+  .contents { position: static; width: auto; padding: 22px 28px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .edition { margin-bottom: 12px; }
+  nav { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; }
+  nav a { font-size: 13px; }
+  .report-link { margin-top: 12px; }
+  main { margin: 0; padding: 32px 28px; max-width: 960px; }
+}
+@media (max-width: 480px) {
+  .contents { padding: 20px; }
+  main { padding: 28px 20px; }
+  h1 { font-size: 28px; }
+  h2 { font-size: 22px; }
+  .lead { font-size: 16px; }
+  section { padding-top: 28px; }
+  th, td { padding: 10px 7px; }
+  .notice { padding: 10px 13px; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+@media print {
+  .contents { display: none; }
+  main { margin: 0; max-width: none; padding: 0; }
+  figure, tr, .notice { break-inside: avoid; }
+  section { break-before: auto; }
+  a { color: inherit; }
+}

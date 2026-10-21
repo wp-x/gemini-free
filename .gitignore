@@ -2,3 +2,6 @@ Gemini Free.app/
 *.zip
 *.dmg
 .DS_Store
+dist/
+.runtime/
+*.test

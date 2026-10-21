@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <meta name="color-scheme" content="light">
+    <title>Gemini Free</title>
+    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./layout.css">
+    <link rel="stylesheet" href="./workspace.css">
+    <link rel="stylesheet" href="./settings.css">
+    <link rel="stylesheet" href="./responsive.css">
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <div class="titlebar-drag" aria-hidden="true"></div>
+    <a class="skip-link" href="" data-skip-to="main-content">跳到主内容</a>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand"><img class="brand-symbol" src="./assets/logo.png" alt="" width="36" height="36"><div><strong>Gemini Free</strong></div></div>
+        <nav id="navigation" aria-label="主导航"></nav>
+        <nav id="utility-navigation" aria-label="应用"></nav>
+        <div class="sidebar-context">
+          <div id="connection-status" class="context-state" role="status" tabindex="0" title="正在连接" aria-label="正在连接"><span id="connection-dot" class="status-dot" aria-hidden="true"></span></div>
+        </div>
+      </aside>
+      <main id="main-content" tabindex="-1">
+        <header class="page-header">
+          <h1 id="page-title">首页</h1>
+          <div class="header-actions"><span id="header-mode" class="mode-indicator" role="img" tabindex="0"></span><button id="header-settings" class="icon-button" type="button" title="设置" aria-label="设置"></button><button id="refresh-state" class="icon-button" type="button" title="刷新状态" aria-label="刷新状态"></button><button id="toggle-service" class="button primary" type="button" disabled>启动服务</button></div>
+        </header>
+        <div id="connection-error" class="error-banner" role="alert" hidden></div>
+        <div id="workspace" class="workspace"><div class="loading-state">正在读取本地服务状态</div></div>
+      </main>
+    </div>
+    <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>

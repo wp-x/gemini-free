@@ -1,0 +1,8 @@
+[
+  {
+    "name": "real anonymous OpenAI stream",
+    "status": "failed",
+    "duration_ms": 40008,
+    "error": "{\"message\":\"read upstream stream: context deadline exceeded\",\"type\":\"upstream_error\"}\n+ actual - expected\n\n+ {\n+   message: 'read upstream stream: context deadline exceeded',\n+   type: 'upstream_error'\n+ }\n- undefined\n"
+  }
+]
