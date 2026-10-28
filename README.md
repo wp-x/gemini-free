@@ -22,8 +22,8 @@
 
 | 系统 | 安装包 | 说明 |
 | --- | --- | --- |
-| macOS 12 及以上 | [Gemini Free 2.0.0.dmg](https://github.com/wp-x/gemini-free/releases/download/v2.0.0/Gemini%20Free%202.0.0.dmg) | 同时支持 Apple Silicon 和 Intel，打开后拖入 Applications |
-| Windows x64 | [Gemini Free Setup 2.0.0 amd64.exe](https://github.com/wp-x/gemini-free/releases/download/v2.0.0/Gemini%20Free%20Setup%202.0.0%20amd64.exe) | 安装版，使用系统 WebView2；已在 Windows 11 验证启动 |
+| macOS 12 及以上 | [Gemini Free 2.0.0.dmg](https://github.com/wp-x/gemini-free/releases/download/v2.0.0/Gemini.Free.2.0.0.dmg) | 同时支持 Apple Silicon 和 Intel，打开后拖入 Applications |
+| Windows x64 | [Gemini Free Setup 2.0.0 amd64.exe](https://github.com/wp-x/gemini-free/releases/download/v2.0.0/Gemini.Free.Setup.2.0.0.amd64.exe) | 安装版，使用系统 WebView2；已在 Windows 11 验证启动 |
 
 [发布页](https://github.com/wp-x/gemini-free/releases/latest)还提供 Windows 独立可执行文件和 SHA-256 校验值。macOS 安装包为本地签名，未做 Apple 公证；Windows 安装包没有发行者签名，首次打开可能出现系统提示。
 
