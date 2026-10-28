@@ -1,7 +1,6 @@
 package app
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -24,23 +23,11 @@ type AccountInput struct {
 func (c *Controller) AddAccount(input AccountInput) error {
 	c.change.Lock()
 	defer c.change.Unlock()
-	doc, err := gemini.ImportDocument(input.Cookie)
+	doc, err := accountDocument(input)
 	if err != nil {
 		return err
 	}
 	id := randomAccountID()
-	if input.AuthUser != "" {
-		doc.AuthUser = input.AuthUser
-	}
-	if strings.IndexFunc(doc.AuthUser, func(r rune) bool { return r < '0' || r > '9' }) >= 0 {
-		return fmt.Errorf("账号编号必须为空或数字")
-	}
-	if input.XSRF != "" {
-		doc.XSRF = input.XSRF
-	}
-	if input.Build != "" {
-		doc.Build = input.Build
-	}
 	if err := c.credentials.Save(id, doc); err != nil {
 		return err
 	}
@@ -58,6 +45,26 @@ func (c *Controller) AddAccount(input AccountInput) error {
 	c.mu.Unlock()
 	c.AddLog("info", "登录会话已加密导入")
 	return nil
+}
+
+func accountDocument(input AccountInput) (gemini.Document, error) {
+	doc, err := gemini.ImportDocument(input.Cookie)
+	if err != nil {
+		return gemini.Document{}, err
+	}
+	if input.AuthUser != "" {
+		doc.AuthUser = input.AuthUser
+	}
+	if strings.IndexFunc(doc.AuthUser, func(r rune) bool { return r < '0' || r > '9' }) >= 0 {
+		return gemini.Document{}, fmt.Errorf("账号编号必须为空或数字")
+	}
+	if input.XSRF != "" {
+		doc.XSRF = input.XSRF
+	}
+	if input.Build != "" {
+		doc.Build = input.Build
+	}
+	return doc, nil
 }
 
 func (c *Controller) DeleteAccount(id string) error {
@@ -84,29 +91,10 @@ func (c *Controller) DeleteAccount(id string) error {
 	}
 	c.mu.Lock()
 	c.cfg = next
+	delete(c.parameterErrors, id)
 	c.mu.Unlock()
 	c.AddLog("info", "登录会话已删除")
 	return nil
-}
-
-func (c *Controller) RefreshAccount(ctx context.Context, id string) error {
-	cfg := c.Config()
-	client, err := c.client(cfg)
-	if err != nil {
-		return err
-	}
-	for _, account := range cfg.Accounts {
-		if account.ID == id {
-			_, err := c.sessions.Refresh(ctx, gemini.SessionRequest{ID: id, AuthUser: account.AuthUser, Client: client})
-			if err != nil {
-				c.AddLog("error", "会话刷新失败："+err.Error())
-				return err
-			}
-			c.AddLog("info", "会话已续期并同步参数")
-			return nil
-		}
-	}
-	return fmt.Errorf("unknown account")
 }
 
 func randomAccountID() string {

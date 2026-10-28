@@ -10,7 +10,7 @@ export function logs(workspace, context) {
     </div>
     <div class="section-heading log-count"><span id="log-count" class="meta"></span><span class="meta">北京时间</span></div>
     <div id="log-empty" class="empty-state">${icon("scroll-text")}<span>暂无日志</span></div>
-    <div id="log-region" class="table-scroll log-region" tabindex="0" aria-label="运行日志"><table class="log-table"><thead><tr><th>时间</th><th>级别</th><th>事件</th></tr></thead><tbody id="log-rows"></tbody></table></div>`);
+    <div id="log-region" class="table-scroll log-region" tabindex="0" aria-label="日志"><table class="log-table"><thead><tr><th>时间</th><th>级别</th><th>事件</th></tr></thead><tbody id="log-rows"></tbody></table></div>`);
   for (const id of ["log-search", "log-level"]) page.querySelector(`#${id}`).addEventListener("input", () => update(page, context.getState()));
   page.querySelector("#download-logs").addEventListener("click", () => download(context.getState().logs));
   return { update: (state) => update(page, state) };

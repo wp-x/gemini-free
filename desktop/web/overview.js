@@ -28,7 +28,7 @@ export function overview(workspace, context) {
       <div class="section-heading"><h2>API 地址</h2><button id="network-settings" class="text-button" type="button">局域网设置</button></div>
       <div id="home-endpoints"></div>
     </section>
-    <section class="activity-section"><div class="section-heading"><h2>最近活动</h2><button id="open-logs" class="icon-button" type="button" title="查看运行日志" aria-label="查看运行日志">${icon("scroll-text")}</button></div><div id="activity-list"></div></section>`);
+    <section class="activity-section"><div class="section-heading"><h2>最近活动</h2><button id="open-logs" class="icon-button" type="button" title="查看日志" aria-label="查看日志">${icon("scroll-text")}</button></div><div id="activity-list"></div></section>`);
   const form = page.querySelector("form");
   form.addEventListener("input", () => { form.dataset.dirty = "true"; reflectMode(page, form); });
   submit(form, context, async (data) => {

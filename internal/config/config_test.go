@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -100,5 +101,30 @@ func TestAddressPreservesIPv6Brackets(t *testing.T) {
 	}
 	if cfg.Address() != "[::1]:8081" {
 		t.Fatalf("invalid IPv6 listener address: %s", cfg.Address())
+	}
+}
+
+func TestRetiredRefreshSettingIsDroppedOnSave(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	if err := WritePrivate(path, []byte(`{"auto_refresh":true,"proxy":"http://127.0.0.1:7890"}`)); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(path)
+	if err != nil || cfg.Proxy != "http://127.0.0.1:7890" {
+		t.Fatalf("existing configuration did not load: %v", err)
+	}
+	if err := Save(path, cfg); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stored map[string]any
+	if err := json.Unmarshal(data, &stored); err != nil {
+		t.Fatal(err)
+	}
+	if _, present := stored["auto_refresh"]; present {
+		t.Fatal("retired refresh setting was written back")
 	}
 }

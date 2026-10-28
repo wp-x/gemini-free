@@ -16,7 +16,6 @@ export function settings(workspace, context) {
         <h2 class="settings-group-title">${icon("settings-2")}上游连接</h2>
         <div class="preference-row"><label for="proxy"><strong>出站代理</strong><span>HTTP、HTTPS 或 SOCKS5</span></label><input id="proxy" name="proxy" type="url" placeholder="直连" autocomplete="off" spellcheck="false"></div>
         <div class="preference-row"><label for="timeout"><strong>请求超时</strong><span>等待上游响应的秒数</span></label><input id="timeout" name="timeout_seconds" type="number" min="1" required></div>
-        <label class="preference-row switch-row"><span><strong>自动刷新登录会话</strong><span class="preference-description">续期并同步会话参数</span></span><input name="auto_refresh" type="checkbox" role="switch" class="switch"></label>
       </section>
       <details class="advanced-options"><summary>高级设置</summary>
         <div class="preference-row"><label for="host"><strong>监听地址</strong></label><input id="host" name="host" required autocomplete="off"></div>
@@ -44,7 +43,6 @@ function settingsConfig(data, config) {
     proxy: String(data.get("proxy")).trim(),
     timeout_seconds: Number(data.get("timeout_seconds")),
     build: String(data.get("build")).trim(),
-    auto_refresh: data.has("auto_refresh"),
   };
 }
 
@@ -52,7 +50,6 @@ function update(page, state) {
   const form = page.querySelector("form");
   if (!form.dataset.dirty) {
     for (const key of ["host", "port", "proxy", "timeout_seconds", "build"]) form.elements[key].value = state.config[key] ?? "";
-    form.auto_refresh.checked = state.config.auto_refresh;
     page.querySelector("#lan-access").checked = state.network.lan_enabled;
   }
   for (const input of [form.host, form.port]) input.readOnly = state.service.running;

@@ -1,145 +1,157 @@
 # Gemini Free desktop design
 
-## 1. Visual theme and evidence
+## Current reference
 
-Use the observed AutoGLM application structure: a quiet gray sidebar, a white
-workspace, compact gray selected navigation, four flat overview metrics, dated
-activity lists, and a centered settings dialog with a pale cool sidebar.
+The current visual reference is the user's revised
+`/Users/mac/Downloads/client-design-v2.html`, received on October 21, 2026.
+SHA256: `dd5efefd80089544052c379fa14545cf984716a320d1d2c3f4e7116bc7d6dab2`.
 
-The logged-in application reports **1.7.0 (128)** in its About screen. The supplied
-DMG contains **1.19.0 (150)**. These are different versions. Logged-in screenshots
-under `artifacts/autotyper-ui-20261021/logged-in/` are the visual reference for this
-revision; DMG static evidence must not be described as proof of the older running
-application's exact implementation.
+Static HTML and CSS comparison with `design/client-design.html` confirmed that
+the revision changes the visual theme, while preserving markup, text and script.
+The product adopts the revised theme through its existing stylesheet modules;
+the reference's offline demonstration script is not part of the application.
+The original reference file remains untouched.
 
-## 2. Color palette
+Earlier AutoGLM investigations informed the initial layout. Logged-in evidence
+was from version 1.7.0 (128), while the supplied DMG contained 1.19.0 (150).
+Those observations are historical evidence, not the current design contract.
+No private branding, account information or input-method features are copied.
 
-| Token | Value | Role |
+## Theme tokens
+
+`desktop/web/theme.css` owns the theme. Both appearances follow the operating
+system through `prefers-color-scheme`; the HTML declares `light dark`.
+
+| Role | Light | Dark |
 | --- | --- | --- |
-| Canvas | `#FFFFFF` | Main content |
-| Sidebar | `#F5F5F5` | Main navigation |
-| Selected | `#EBEBEB` | Selected main navigation |
-| Settings sidebar | `#F5F4F8` | Settings categories |
-| Input | `#F3F3F3` | Editable controls |
-| Action surface | `#EEEEEE` | Everyday primary commands |
-| Action border | `#E1E1E1` | Quiet button boundary |
-| Action hover / press | `#E5E5E5` / `#DCDCDC` | Pointer feedback |
-| Ink | `#292929` | Main text |
-| Secondary | `#858585` | Metadata |
-| Divider | `#EDEDED` | Hairline grouping |
-| Positive | `#35734E` | Confirmed running state |
-| Error | `#B43D35` | Actual errors |
+| Window shell | `#f3f4f6` | `#0b0c0e` |
+| Workspace | `#ffffff` | `#131519` |
+| Subtle surface | `#f9fafb` | `#181b20` |
+| Input | `#f1f2f5` | `#1e2229` |
+| Main text | `#111827` | `#f3f4f6` |
+| Secondary text | `#5f6877` | `#9ca3af` |
+| Muted text | `#626d7c` | `#8b95a5` |
+| Focus and switches | `#4f46e5` | `#6366f1` |
+| Positive text | `#047857` | `#34d399` |
+| Error text | `#b91c1c` | `#f87171` |
 
-Selected `#EBEBEB`, hover `#F0F0F0`, and ink `#292929` are from DMG 1.19 static
-REA evidence. Other colors are migration choices. The 1.7 screenshots embed an
-LG ULTRAWIDE ICC profile; raw screenshot RGB is not treated as exact sRGB CSS.
+Neutral surfaces, restrained borders and compact typography carry the hierarchy.
+Overview metrics retain the reference's faint green, gold, violet and blue
+accents. Functional focus and selected icons use the purple accent.
 
-## 3. Typography
+## Typography and geometry
 
-Use the system stack: `-apple-system`, `BlinkMacSystemFont`, `SF Pro Text`,
-`Segoe UI`, `PingFang SC`, sans-serif. Tracking is zero throughout.
+Use the platform system stack with Chinese system font alternatives. No external
+font request is required. Body text is 13px; page titles are 20px/650, section
+headings 13.5px/600, control labels 12px, and metadata 11-12px. Tracking stays zero.
+Status values use tabular numerals; reading and output surfaces allow selection.
 
-Page title is 24px/600, settings title 29px/600, main navigation 14px/600, body
-13px, compact controls 12px, and metadata 10-12px. Chinese reading surfaces use a
-1.65-1.85 line height. Numeric status uses tabular figures.
+| Element | Geometry |
+| --- | --- |
+| Main sidebar | 212px wide, 32px visible navigation rows |
+| Window titlebar reserve | At least 34px, honoring the MyGo titlebar variable |
+| Workspace | 14px radius, inset from the gray window shell |
+| Main controls | 34px tall, 8px radius |
+| Small surfaces | 6px radius |
+| Overview metrics | 12px radius, four columns at standard desktop width |
+| Settings dialog | Up to 820 by 620px, 16px radius |
+| Settings sidebar | 196px at standard desktop width |
+| Confirmation dialog | Up to 400px wide, shared 16px dialog radius |
+| Settings close icon | 28px circle, extended invisible hit area |
 
-## 4. Components and evidence limits
+Native window controls remain native. The frontend drag strip excludes the left
+macOS controls and the right Windows button area. MyGo sets the initial window
+to 1080 by 800, with a minimum of 700 by 540.
 
-REA-derived navigation constants: visible row height 36, icon 20, horizontal
-padding 14, icon-label gap 10, corner radius 10, and row gap 6. A small extended
-hit area preserves at least 40px interaction without changing visible geometry.
+## Controls and feedback
 
-Settings dialog size near 840 by 660 and sidebar near 196 are migration values
-estimated from the running screenshots. Following user feedback, all dialogs use
-a shared 12px radius, including narrow layouts, rather than the earlier 36px
-settings radius. The close control is visually
-32px with an extended 40px hit area. Form controls and flat metrics use 8px radius.
-Rows pair a left label and description with a compact right input or gray switch.
-Selects use the same flat gray surface, 40px height and 8px radius as inputs,
-with a Lucide chevron instead of WebKit's default gradient and dual arrows.
-Their native selection, disabled state, focus, and keyboard behavior remain.
+Primary commands use the reference's dark gradient, thin border, restrained
+shadow and subtle inset highlight. Dark appearance reverses primary foreground
+and background. Secondary buttons use a quiet neutral gradient; utility icons
+remain unfilled until interaction. Hover and pressed states share theme tokens.
+Destructive confirmation uses a red gradient with white text in both appearances.
+Disabled controls do not receive pressed scaling or enabled hover styles.
 
-Everyday commands, including Start Service, Save, and Add Session, use a pale
-gray fill, dark text, a fine border, and the shared 8px radius. Secondary commands
-use a white fill with a lighter border; utility icons stay unfilled until hover
-or press. Destructive confirmation retains red emphasis. Disabled buttons do
-not acquire hover or press fills, and keyboard focus remains clearly outlined.
-The reference's About screen uses a light outlined update action; dictionary
-creation uses orange and account exit uses red. The neutral primary treatment
-here is a project adaptation, not a recovered reference color.
+Selects share input height, radius and fill, with a vendored Lucide chevron.
+Their native keyboard selection, disabled behavior and focus semantics remain.
+Switches use the accent when checked. Segmented mode controls show the active
+option on an inset workspace surface. Lucide icons are vendored; the existing
+Gemini logo remains the product identity.
 
-All icons are vendored Lucide assets. The product uses its own existing Gemini
-logo. AutoGLM private branding, account details, and unrelated input-method
-features are not copied.
+Focus uses a visible accent outline or field ring. Normal transitions are
+140-200ms; pointer press scales to 0.97. Reduced motion removes transitions,
+animations and pressed transforms, including pseudo-elements.
 
-## 5. Layout
+## Layout and real interactions
 
-Main sidebar is 208px. Brand begins at x18, y38 with a 36px image and a single
-product name. Main content begins at sidebar plus 24px and below the 32px titlebar zone.
-The upper navigation contains 首页, 问答, 模型; 设置 and 运行日志 are at the bottom.
-The shell fills the window without scrolling the HTML document. Main content
-scrolls independently; opening any dialog locks background content. Scrollbar
-tracks are hidden in WebKit and standard CSS without disabling wheel, touchpad,
-or keyboard scrolling. Overflowing model tables are focusable for keyboard use.
+The shell fills the window. The document itself never scrolls; the main workspace,
+settings workspace, output and tables scroll within their regions. Visible scrollbar
+tracks remain hidden as previously requested, while wheel, touchpad and keyboard
+scrolling continue to work. Table overflow stays keyboard focusable.
 
-Homepage metrics show actual service status, model count, account count, and API
-key count. A compact mode bar and compatibility addresses precede activity
-grouped by Beijing calendar date. Metrics are an explicit screenshot reference;
-ordinary page sections stay unframed.
-The sidebar footer is a status light with an accessible name and tooltip.
-The header uses an eye-off icon for anonymous mode and a user icon for an account.
-An explicit Start Service / Stop Service button stays visible in the main header;
-connection settings repeats that command while its modal is open.
-The question form uses a fixed 40px circular send control, replaced by a stop
-control during generation. Empty questions disable sending.
+The main header retains an explicit Start/Stop Service action. Metrics display
+actual runtime state, model count, account count and API key count. Mode selection
+requires explicit application. Connection addresses come from actual listeners
+and discovered interfaces; errors and offline states remain visible.
 
-## 6. Depth and window behavior
+Settings remains a native HTML dialog with focus containment, Escape dismissal,
+background scroll lock and focus restoration. Settings category changes preserve
+drafts, and polling updates data without replacing edited fields. Account entry
+is an inline disclosure; removing an account requires confirmation.
 
-Only settings and confirmation dialogs use elevation. Settings backdrop is a
-20% black overlay; the rounded dialog has a restrained shadow. Native window
-buttons remain native. The frontend drag strip uses `--app-region: drag`, height
-`max(32px, var(--mygo-titlebar-height, 0px))`, excluding the left native buttons
-and right Windows button area.
+Cookie and session JSON entry, credential visibility, advanced session fields,
+API keys, service startup and shutdown, log filters and question submission keep
+their existing real implementations. No simulated result path is introduced.
+Credentials are not stored in local storage.
 
-## 7. Interaction rules
+The LAN switch controls the saved API listener scope. The service must stop
+before changing listener scope or port. Management remains on loopback.
+Discovered LAN addresses have separate OpenAI and Anthropic copy actions.
 
-Settings uses a native HTML dialog: focus containment, Escape handling, and focus
-return to its trigger. URLs `view=accounts`, `view=settings`, and `view=keys` open
-the corresponding category with the homepage behind it. Browser Back closes a
-settings visit. Category changes preserve drafts. Polling only updates data.
+## Responsive behavior
 
-New account entry is an inline disclosure. Removing a named account requires a
-local confirmation dialog. API failures remain visible. Anonymous and account
-modes change only through an explicit apply action. No local storage holds
-credentials. Requested model aliases and actual routes remain distinct.
-Cookie or exported session JSON is the only required account input. Names are
-optional and generated when absent. Account number, XSRF, and session build live
-in a collapsed advanced group; imported account numbers are retained. Session
-refresh retrieves XSRF and build from the account page.
+At 900px, overview metrics become two columns and settings navigation narrows.
+At 760px, the main sidebar becomes an icon rail and form fields wrap.
+At 480px, main navigation becomes horizontal and settings categories become tabs.
+The narrower layouts support browser validation and constrained windows; the
+native desktop minimum remains 700 by 540.
 
-The connection category exposes an explicit LAN switch. Saved scope controls
-the listener, and changing scope requires stopping the service. Discovered
-interface addresses are shown with separate OpenAI and Anthropic copy actions.
-Wildcard bind addresses are never shown as client URLs. Discovery errors and
-offline states remain visible; no address is fabricated. Management stays on
-loopback independently of the API listener.
+## Alignment refinement, October 22, 2026
 
-## 8. Responsive and motion
+All visible SVG icon boxes retain their specified square dimensions rather than
+inheriting an unrelated flex basis. Icon-only controls center their glyph in both
+directions. Address copy actions and the activity log action share a right edge
+and center guide. Section text actions align their text with the content edge.
 
-At 900px metrics become two columns; at 760px navigation becomes an icon rail;
-at 480px navigation becomes horizontal and the settings categories become tabs.
-Inputs and localized text wrap without horizontal clipping. Normal page
-navigation is immediate. Pointer presses scale to 0.96 for 100ms; keyboard
-activation has no animation. Reduced motion disables press transforms.
+The segmented mode control, account selector and apply action share the 34px
+control height. Account toolbar controls use the same standard height, and
+session row actions follow the right edge in both wide and wrapped layouts.
+Navigation, page title and accessible labels consistently call the log view
+"日志".
 
-## 9. Implementation guide
+Settings has a fixed header with its title and close button. Only its workspace
+scrolls, with clearance for keyboard focus rings. Scrolling expanded settings
+does not move the close action out of the viewport.
 
-Use vanilla CSS only, split by base controls, layout, workspace, settings, and
-responsive behavior. Example row: white background, 13px weight-500 heading,
-11px `#9A9A9A` description, 36px gray input, 8px radius, zero tracking.
+## Deliberate reference adaptations
 
-Example navigation: 36px visible row, 20px Lucide icon, gap10, padding14,
-radius10, 14px weight600 label, selected `#EBEBEB`.
+- Keep zero tracking instead of the reference's negative tracking.
+- Keep text selection instead of globally disabling it.
+- Hide scrollbar tracks rather than copying the reference's visible 6px tracks.
+- Increase low-contrast small text, status text and destructive button colors.
+- Use secondary text for placeholders so input hover remains readable.
+- Preserve the red confirmation surface during hover instead of allowing a
+  generic button hover rule to replace it with a neutral fill.
+- Keep product scripts and real backend state rather than the offline demo.
 
-Example activity: 12px text, 11px `#A8A8A8` time, 13px horizontal inset, 1px
-`#EEEEEE` continuous outline, 12px group radius, and 23px between dates.
+## Implementation and verification
+
+Styles remain vanilla CSS, split into theme, base controls, shell layout,
+workspace, settings and responsive modules. Go and JavaScript business behavior
+are unchanged by this visual revision.
+
+`scripts/ui-smoke.py` exercises the real isolated management application in
+Chromium: seven views, two appearances and four viewport sizes, plus settings,
+service controls, account form state, log filtering and confirmation behavior.
+Screenshots and the current verification report live in
+`artifacts/ui-v2-20261021/`.

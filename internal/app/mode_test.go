@@ -54,7 +54,7 @@ func TestAPIAndProbeUseSameExplicitMode(t *testing.T) {
 	}
 	for _, mode := range []string{config.AccountMode, config.Anonymous} {
 		cfg := controller.Config()
-		cfg.Mode, cfg.SelectedAccount, cfg.AutoRefresh = mode, account.ID, false
+		cfg.Mode, cfg.SelectedAccount = mode, account.ID
 		if err := controller.Configure(SettingsUpdate{Config: cfg}); err != nil {
 			t.Fatal(err)
 		}

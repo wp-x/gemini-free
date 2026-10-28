@@ -7,6 +7,16 @@ import (
 	"github.com/egoist/mygo"
 )
 
+func applicationMenu() *mygo.Menu {
+	return mygo.NewMenu([]*mygo.MenuItem{
+		{Role: mygo.RoleAppMenu},
+		{Label: "文件", Submenu: []*mygo.MenuItem{
+			{Label: "关闭窗口", Role: mygo.RoleClose},
+		}},
+		{Role: mygo.RoleEditMenu},
+	})
+}
+
 func (d *Desktop) menu() *mygo.Menu {
 	cfg := d.controller.Config()
 	state := d.controller.State()

@@ -38,7 +38,7 @@ export function syncOptions(select, items, selected) {
 }
 
 export function formattedTime(value) {
-  if (!value) return "尚未刷新";
+  if (!value) return "尚未同步";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
   return new Intl.DateTimeFormat("zh-CN", {

@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"gemini-free/internal/config"
 	"gemini-free/internal/generation"
@@ -127,5 +128,31 @@ func TestPayloadShape(t *testing.T) {
 	}
 	if values.Get("at") != "session-token" || modelHeaders(model)[metadataHeader] == "" {
 		t.Fatal("missing session token or Argon metadata")
+	}
+}
+
+func TestAccountGenerationPreservesImportedCookie(t *testing.T) {
+	cfg := config.Default()
+	cfg.Mode, cfg.SelectedAccount = config.AccountMode, "one"
+	cfg.Accounts = []config.Account{{ID: "one"}}
+	original := Document{Cookie: "__Secure-1PSID=imported", XSRF: "token", Build: "build"}
+	repo := &memoryRepository{doc: original}
+	sessions := NewSessions(SessionOptions{Repository: repo, Now: time.Now})
+	calls := 0
+	client := doFunc(func(request *http.Request) (*http.Response, error) {
+		calls++
+		if request.URL.Path != streamEndpoint || request.Header.Get("Cookie") != original.Cookie {
+			t.Error("generation changed the cookie or made an extra parameter request")
+		}
+		headers := http.Header{"Set-Cookie": {"__Secure-1PSID=replaced; Path=/"}}
+		return &http.Response{StatusCode: http.StatusOK, Header: headers,
+			Body: io.NopCloser(strings.NewReader(wireFrame("42", generation.FlashLiteMode, generation.ThinkingLow)))}, nil
+	})
+	engine := New(EngineOptions{Config: func() config.Config { return cfg }, Sessions: sessions,
+		Client: func(config.Config) (HTTPDoer, error) { return client, nil }})
+	result, err := engine.Generate(context.Background(), generation.Request{Model: generation.DefaultModel, Prompt: "17+25"}, nil)
+	saved, _ := repo.Load("one")
+	if err != nil || result.Text != "42" || calls != 1 || saved != original {
+		t.Fatalf("generation failed or overwrote imported credentials: %v", err)
 	}
 }

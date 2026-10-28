@@ -121,13 +121,13 @@
         <li>进入<strong>设置 → 登录会话</strong>，点击<strong>新增会话</strong>。</li>
         <li>在<strong>Cookie 或会话 JSON</strong>粘贴自己的有效登录会话，或点击<strong>导入文件</strong>选择导出的文本 / JSON。</li>
         <li>名称可留空自动命名。点击<strong>添加会话</strong>；“高级参数”用于按需提供已有的会话参数。</li>
-        <li>添加后刷新会话，同步 Cookie、XSRF token 和网页构建参数。自动刷新关闭时需要手动刷新。</li>
+        <li>问答缺少参数时自动读取 XSRF token 和网页构建标识，也可点击账号行的<strong>同步参数</strong>。程序使用导入的 Cookie，不再续期或回写响应 Cookie。</li>
         <li>返回首页，选择<strong>登录会话</strong>及对应账号，点击<strong>应用</strong>，然后到问答页验证目标模型。</li>
       </ol>
       <figure><a href="../../artifacts/automation-20261021/05-account-form.jpg"><img src="../../artifacts/automation-20261021/05-account-form.jpg" alt="空白登录会话表单，包含Cookie、导入文件、可选名称、高级参数与添加会话" width="1080" height="800" loading="lazy"></a>
         <figcaption>截图未填入真实 Cookie。眼睛图标用于显示或隐藏输入内容。</figcaption></figure>
       <div class="notice"><strong>添加成功不代表高级模型可用</strong>
-        <p>本轮没有验证有效账号的高级权限。Cookie 失效、刷新被拒绝或实际思考档位不符时，
+        <p>本轮没有验证有效账号的高级权限。Cookie 失效、参数读取被拒绝或实际思考档位不符时，
           应按真实错误处理；程序不会把低档响应当作高级模型成功。</p></div>
     </section>
 
@@ -151,7 +151,7 @@
         <tbody>
           <tr><td>此模型需要登录会话</td><td>改用已验证的匿名模型，或配置具备权限的登录会话并应用。</td></tr>
           <tr><td>context deadline exceeded</td><td>检查网络、出站代理与请求超时。记录失败后可手动再试；重试不保证成功。</td></tr>
-          <tr><td>401 / 会话刷新失败</td><td>在浏览器确认账号登录有效，再更新会话并刷新。</td></tr>
+          <tr><td>401 / 参数同步失败</td><td>在浏览器确认账号登录有效，再重新导入有效 Cookie 并同步参数。</td></tr>
           <tr><td>实际模型 / 思考档位不符</td><td>检查账号权限和会话参数，不应将此错误当作高级模型成功。</td></tr>
         </tbody>
       </table></div>

@@ -37,7 +37,6 @@ type Config struct {
 	TimeoutSeconds  int       `json:"timeout_seconds"`
 	DefaultModel    string    `json:"default_model"`
 	Build           string    `json:"build"`
-	AutoRefresh     bool      `json:"auto_refresh"`
 	Accounts        []Account `json:"accounts,omitempty"`
 	APIKeyRef       string    `json:"api_key_ref,omitempty"`
 }
@@ -45,7 +44,7 @@ type Config struct {
 func Default() Config {
 	return Config{Mode: Anonymous, Host: "127.0.0.1", Port: DefaultPort,
 		TimeoutSeconds: DefaultTimeout, DefaultModel: generation.DefaultModel,
-		Build: DefaultBuild, AutoRefresh: true, Accounts: []Account{}}
+		Build: DefaultBuild, Accounts: []Account{}}
 }
 
 func Path() (string, error) {

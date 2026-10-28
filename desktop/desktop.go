@@ -25,7 +25,7 @@ const (
 	windowMinHeight   = 540
 	titleBarHeight    = 32
 	trafficLightInset = 12
-	desktopVersion    = "0.1.0"
+	desktopVersion    = "2.0.0"
 )
 
 type Options struct {
@@ -42,7 +42,6 @@ type Desktop struct {
 	tray          *mygo.Tray
 	controller    *app.Controller
 	controlServer *http.Server
-	cancelRefresh context.CancelFunc
 	quitting      bool
 	url           string
 }
@@ -51,6 +50,7 @@ func Run(options Options) error {
 	d := &Desktop{options: options}
 	mygo.App.SetName("Gemini Free")
 	mygo.App.SetVersion(desktopVersion)
+	mygo.App.SetActivationPolicy(mygo.ActivationPolicyAccessory)
 	if !mygo.App.RequestSingleInstanceLock() {
 		return fmt.Errorf("Gemini Free 已运行，已唤醒现有窗口")
 	}
@@ -95,9 +95,6 @@ func (d *Desktop) initialize() error {
 		return err
 	}
 	d.controller = controller
-	ctx, cancel := context.WithCancel(context.Background())
-	d.cancelRefresh = cancel
-	go controller.RefreshLoop(ctx)
 	return d.start()
 }
 
@@ -162,7 +159,7 @@ func (d *Desktop) createUI() error {
 		tray.PopUpMenu()
 		tray.SetMenu(nil)
 	})
-	mygo.App.SetMenu(mygo.NewMenu([]*mygo.MenuItem{{Role: mygo.RoleAppMenu}, {Role: mygo.RoleEditMenu}}))
+	mygo.App.SetMenu(applicationMenu())
 	return nil
 }
 
@@ -178,9 +175,6 @@ func (d *Desktop) show() {
 }
 
 func (d *Desktop) shutdown() {
-	if d.cancelRefresh != nil {
-		d.cancelRefresh()
-	}
 	if d.controlServer != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		if err := d.controlServer.Shutdown(ctx); err != nil {

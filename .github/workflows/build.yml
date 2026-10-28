@@ -1,4 +1,4 @@
-name: build
+name: Desktop build
 
 on:
   push:
@@ -8,40 +8,61 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
     runs-on: macos-14
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-
-      - name: Test
-        run: bash test.sh
-
-      - name: Build
-        run: ./build.sh
-
-      - name: Zip app
-        run: ditto -c -k --keepParent "Gemini Free.app" GeminiFree-macOS.zip
-
-      - name: Make DMG
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Test and vet
         run: |
-          brew install create-dmg
-          ./make-dmg.sh
-
+          perl -e 'alarm 60; exec @ARGV' go test -race -count=1 -timeout 60s ./internal/... ./desktop/... ./cmd/...
+          go vet ./internal/... ./desktop/... ./cmd/...
+      - name: Install Windows packaging tools
+        run: brew install makensis
+      - name: Check release version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          version=$(sed -n 's/.*version: "\([^"]*\)".*/\1/p' mygo.config.ts)
+          test "$GITHUB_REF_NAME" = "v$version"
+          grep -q "desktopVersion.*= \"$version\"" desktop/desktop.go
+      - name: Build both platforms
+        run: bash scripts/build-desktop.sh
+      - name: Collect installers
+        run: |
+          mkdir release-assets
+          cp dist/darwin-universal/*.dmg release-assets/
+          cp dist/windows-amd64/*Setup*.exe release-assets/
+          cp 'dist/windows-amd64/Gemini Free.exe' release-assets/
+          cd release-assets
+          shasum -a 256 *.dmg *.exe > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: GeminiFree-macOS
-          path: |
-            GeminiFree-macOS.zip
-            GeminiFree.dmg
+          name: Gemini-Free-desktop
+          path: release-assets/
+          if-no-files-found: error
 
-      - name: Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         with:
-          generate_release_notes: true
-          files: |
-            GeminiFree-macOS.zip
-            GeminiFree.dmg
+          name: Gemini-Free-desktop
+          path: release-assets
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" release-assets/* \
+            --verify-tag --draft --title "Gemini Free $GITHUB_REF_NAME" \
+            --notes-file "docs/releases/$GITHUB_REF_NAME.md"

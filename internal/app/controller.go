@@ -35,19 +35,20 @@ type Options struct {
 }
 
 type Controller struct {
-	mu          sync.RWMutex
-	change      sync.Mutex
-	cfg         config.Config
-	path        string
-	credentials Credentials
-	sessions    *gemini.Sessions
-	engine      generation.Generator
-	client      func(config.Config) (gemini.HTTPDoer, error)
-	keys        []string
-	logs        []Log
-	server      *http.Server
-	service     Service
-	addresses   func() ([]network.Address, error)
+	mu              sync.RWMutex
+	change          sync.Mutex
+	cfg             config.Config
+	path            string
+	credentials     Credentials
+	sessions        *gemini.Sessions
+	engine          generation.Generator
+	client          func(config.Config) (gemini.HTTPDoer, error)
+	keys            []string
+	logs            []Log
+	parameterErrors map[string]string
+	server          *http.Server
+	service         Service
+	addresses       func() ([]network.Address, error)
 }
 
 func New(options Options) (*Controller, error) {
@@ -55,7 +56,8 @@ func New(options Options) (*Controller, error) {
 		return nil, fmt.Errorf("network address provider is required")
 	}
 	c := &Controller{cfg: options.Config, path: options.Path, credentials: options.Credentials,
-		client: options.Client, addresses: options.Addresses, logs: []Log{}}
+		client: options.Client, addresses: options.Addresses, logs: []Log{},
+		parameterErrors: make(map[string]string)}
 	keys, err := c.loadAPIKeys(options.Config.APIKeyRef)
 	if err != nil {
 		return nil, err

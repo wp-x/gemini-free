@@ -76,5 +76,11 @@ func (c *Controller) accountSummary(account config.Account) AccountSummary {
 		summary.RefreshedAt = doc.RefreshedAt.Format(time.RFC3339)
 		summary.Status = "参数已同步，模型权限待问答验证"
 	}
+	c.mu.RLock()
+	summary.Error = c.parameterErrors[account.ID]
+	c.mu.RUnlock()
+	if summary.Error != "" {
+		summary.Status = "参数同步失败"
+	}
 	return summary
 }

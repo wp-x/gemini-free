@@ -4,12 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 )
-
-const refreshInterval = 3 * time.Minute
 
 type Document struct {
 	Cookie      string    `json:"cookie"`
@@ -17,7 +14,6 @@ type Document struct {
 	Build       string    `json:"gemini_bl"`
 	AuthUser    string    `json:"session_auth_user"`
 	RefreshedAt time.Time `json:"refreshed_at"`
-	RotatedAt   time.Time `json:"rotated_at"`
 }
 
 type Repository interface {
@@ -67,37 +63,6 @@ func cookieMap(header string) (map[string]string, error) {
 		values[cookie.Name] = cookie.Value
 	}
 	return values, nil
-}
-
-func mergeCookies(doc Document, received []*http.Cookie, now time.Time) (Document, error) {
-	if len(received) == 0 {
-		return doc, nil
-	}
-	values, err := cookieMap(doc.Cookie)
-	if err != nil {
-		return Document{}, err
-	}
-	for _, cookie := range received {
-		if !acceptCookie(cookie) {
-			continue
-		}
-		if cookie.MaxAge < 0 || (!cookie.Expires.IsZero() && cookie.Expires.Before(now)) {
-			delete(values, cookie.Name)
-			continue
-		}
-		values[cookie.Name] = cookie.Value
-	}
-	names := make([]string, 0, len(values))
-	for name := range values {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	pairs := make([]string, 0, len(names))
-	for _, name := range names {
-		pairs = append(pairs, name+"="+values[name])
-	}
-	doc.Cookie = strings.Join(pairs, "; ")
-	return doc, nil
 }
 
 func acceptCookie(cookie *http.Cookie) bool {

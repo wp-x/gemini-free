@@ -57,7 +57,8 @@ func (c *Control) dispatch(w http.ResponseWriter, r *http.Request) {
 	mux.HandleFunc("POST /control/accounts", c.addAccount)
 	mux.HandleFunc("POST /control/import-legacy", c.importLegacy)
 	mux.HandleFunc("DELETE /control/accounts/{id}", c.deleteAccount)
-	mux.HandleFunc("POST /control/accounts/{id}/refresh", c.refreshAccount)
+	mux.HandleFunc("POST /control/accounts/{id}/sync", c.syncAccountParameters)
+	mux.HandleFunc("POST /control/accounts/{id}/session", c.replaceAccountSession)
 	mux.HandleFunc("POST /control/probe", c.probe)
 	mux.ServeHTTP(w, r)
 }
@@ -106,8 +107,17 @@ func (c *Control) deleteAccount(w http.ResponseWriter, r *http.Request) {
 	c.finish(w, c.Controller.DeleteAccount(r.PathValue("id")))
 }
 
-func (c *Control) refreshAccount(w http.ResponseWriter, r *http.Request) {
-	c.finish(w, c.Controller.RefreshAccount(r.Context(), r.PathValue("id")))
+func (c *Control) replaceAccountSession(w http.ResponseWriter, r *http.Request) {
+	var input AccountInput
+	if err := decodeBody(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	c.finish(w, c.Controller.ReplaceAccountSession(r.PathValue("id"), input))
+}
+
+func (c *Control) syncAccountParameters(w http.ResponseWriter, r *http.Request) {
+	c.finish(w, c.Controller.SyncAccountParameters(r.Context(), r.PathValue("id")))
 }
 
 func (c *Control) finish(w http.ResponseWriter, err error) {

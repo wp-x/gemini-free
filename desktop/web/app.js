@@ -12,7 +12,7 @@ const pages = [
   { id: "overview", title: "首页", icon: "layout-dashboard", mount: overview },
   { id: "probe", title: "问答", icon: "messages-square", mount: question },
   { id: "models", title: "模型", icon: "boxes", mount: models },
-  { id: "logs", title: "运行日志", icon: "scroll-text", mount: logs },
+  { id: "logs", title: "日志", icon: "scroll-text", mount: logs },
 ];
 let currentState;
 let controllers = [];

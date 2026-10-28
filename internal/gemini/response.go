@@ -93,11 +93,11 @@ func intAt(values []json.RawMessage, index int) int {
 
 func validateRoute(model generation.Model, f frame) error {
 	if model.Account && f.mode != model.Mode {
-		return fmt.Errorf("model routing failed: requested mode %d, received %d", model.Mode, f.mode)
+		return &RoutingError{RequestedMode: model.Mode, ActualMode: f.mode}
 	}
 	if model.Mode == generation.ArgonMode && f.thinking != model.Extra[generation.ArgonThinking] {
-		return fmt.Errorf("Argon thinking mismatch: requested %d, received %d",
-			model.Extra[generation.ArgonThinking], f.thinking)
+		return &RoutingError{RequestedMode: model.Mode, ActualMode: f.mode,
+			RequestedThinking: model.Extra[generation.ArgonThinking], ActualThinking: f.thinking}
 	}
 	return nil
 }

@@ -59,11 +59,6 @@ func (e *Engine) Generate(ctx context.Context, request generation.Request, emit 
 		return generation.Result{}, fmt.Errorf("upstream request: %w", err)
 	}
 	defer response.Body.Close()
-	if cfg.Mode == config.AccountMode {
-		if err := e.options.Sessions.Receive(cfg.SelectedAccount, doc, response.Cookies()); err != nil {
-			return generation.Result{}, err
-		}
-	}
 	if response.StatusCode != http.StatusOK {
 		return generation.Result{}, fmt.Errorf("upstream HTTP %d", response.StatusCode)
 	}
@@ -77,7 +72,7 @@ func (e *Engine) session(ctx context.Context, cfg config.Config, client HTTPDoer
 	for _, account := range cfg.Accounts {
 		if account.ID == cfg.SelectedAccount {
 			return e.options.Sessions.Snapshot(ctx, SessionRequest{
-				ID: account.ID, AuthUser: account.AuthUser, AutoRefresh: cfg.AutoRefresh, Client: client})
+				ID: account.ID, AuthUser: account.AuthUser, Client: client})
 		}
 	}
 	return Document{}, fmt.Errorf("请选择有效的登录会话")
